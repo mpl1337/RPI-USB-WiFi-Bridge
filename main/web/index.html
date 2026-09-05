@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RPI USB WiFi Bridge</title>
+<style>
+:root{color-scheme:light;--bg:#f3f7f4;--card:#ffffff;--card-soft:#f8fbf9;--line:#d8e2dc;--line-strong:#b8c9bf;--text:#183126;--muted:#687a70;--ok:#079447;--ok-dark:#056d36;--ok-soft:#e9f7ef;--bad:#c33b34;--bad-soft:#fceeed;--warn:#a66a00;--warn-soft:#fff7df;--accent:#079447;--accent-dark:#056d36;--accent-soft:#e7f6ed;--term-fg:#daf3e4;--term-bg:#0c1711;--shadow:0 10px 28px rgba(25,65,43,.08);--shadow-lg:0 24px 70px rgba(16,48,31,.20)}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:linear-gradient(180deg,#fbfdfb 0,#f3f7f4 260px);color:var(--text);font:14px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}body.modal-open{overflow:hidden}
+main{max-width:1180px;margin:auto;padding:24px 20px 34px}.top{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:4px 0 16px;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:0;min-width:0}.brand-copy{min-width:0}h1{font-size:24px;line-height:1.12;margin:0;color:#123023;letter-spacing:-.25px}.sub{color:var(--muted);margin-top:5px}.top-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.top-action{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px}.console-open-btn{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;padding-inline:14px}.console-open-btn:hover:not(:disabled){background:var(--accent-dark);border-color:var(--accent-dark);box-shadow:0 5px 14px rgba(7,148,71,.16)}.console-glyph{font:700 13px ui-monospace,SFMono-Regular,Consolas,monospace}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:18px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 16px;box-shadow:var(--shadow)}.card h2{font-size:13px;line-height:1.2;margin:0 0 12px;color:var(--muted);font-weight:750;text-transform:uppercase;letter-spacing:.055em}.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}.card-head h2{margin:0}.card-actions{display:flex;align-items:center;gap:6px}.icon-btn{width:32px;height:32px;padding:0;display:grid;place-items:center;border-radius:8px;font-size:17px;line-height:1;color:var(--muted);background:#fff}.icon-btn:hover:not(:disabled){color:var(--accent-dark);border-color:#94bea6;background:var(--accent-soft)}.restart-btn{color:#8a5a00}.restart-btn:hover:not(:disabled){color:#875800;border-color:#d9be7b;background:#fff7e1}.icon-btn.refreshing{animation:usbspin .8s linear infinite}.icon-btn.refresh-ok{color:var(--ok);border-color:#77bc91;background:var(--ok-soft)}.icon-btn.refresh-bad{color:var(--bad);border-color:#dc9691;background:var(--bad-soft)}@keyframes usbspin{to{transform:rotate(360deg)}}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:7px 0}.row>span:first-child{color:#53685d}.v{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;text-align:right;color:#1b3528}.ok{color:var(--ok-dark)!important}.bad{color:var(--bad)!important}.idle{color:var(--muted)!important}.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-size:12px;font-weight:650;background:#fff}.pill.ok{background:var(--ok-soft);border-color:#b8dec6}.pill.bad{background:var(--bad-soft);border-color:#edc2bf}.pill.idle{background:#f5f7f5}.muted{color:var(--muted)}
+.rssi-readout{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:142px}.rssi-meter{width:76px;height:8px;overflow:hidden;border:1px solid var(--line);border-radius:999px;background:#ecf1ee;box-shadow:inset 0 1px 2px rgba(20,55,36,.08)}.rssi-fill{display:block;height:100%;width:0;border-radius:999px;background:var(--bad);transition:width .25s ease,background-color .25s ease}.rssi-fill.warn{background:#d2941a}.rssi-fill.good{background:var(--ok)}
+button,select,input[type=text],input[type=file]{font:inherit;background:#fff;border:1px solid var(--line-strong);color:var(--text);border-radius:8px;padding:8px 11px;transition:border-color .12s,background .12s,box-shadow .12s,color .12s}button{cursor:pointer}button:hover:not(:disabled){border-color:#88b49a;background:#f7fbf8}button:focus-visible,select:focus-visible,input:focus-visible,.drop-zone:focus-visible{outline:3px solid rgba(7,148,71,.14);outline-offset:1px;border-color:#63ad7f}button:disabled{opacity:.45;cursor:not-allowed}.grow{flex:1;min-width:220px}.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}.primary:hover:not(:disabled){background:var(--accent-dark);border-color:var(--accent-dark)}
+.stats{display:grid;grid-template-columns:minmax(0,1fr) max-content;gap:6px 13px;align-items:baseline}.stats>span:nth-child(odd){min-width:0;white-space:nowrap;color:#53685d}.stats .n{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;text-align:right;white-space:nowrap}.stats .group-start{padding-top:8px;border-top:1px solid var(--line);margin-top:3px}
+.fw-card{margin:0 0 18px}.fw-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.fw-row input[type=file]{flex:1;min-width:260px}.fw-progress{width:100%;height:12px;margin-top:11px;accent-color:var(--accent)}.fw-status{margin-top:8px;color:var(--muted)}.fw-note{font-size:12px;color:var(--muted);margin-top:8px}.danger{background:#fff6f5;border-color:#e7aba6;color:#ad302b}.danger:hover:not(:disabled){background:var(--bad-soft);border-color:#d7756e;color:#922721}.danger-note{color:#ad302b}
+.maintenance{margin:16px 0 4px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.76);font-size:12px;box-shadow:0 5px 18px rgba(25,65,43,.035)}.maintenance>summary{cursor:pointer;color:var(--muted);padding:9px 12px;display:flex;align-items:center;gap:7px;list-style:none;user-select:none}.maintenance>summary::-webkit-details-marker{display:none}.maintenance>summary::before{content:'›';display:inline-block;font-size:17px;line-height:1;transition:transform .15s;color:var(--accent)}.maintenance[open]>summary::before{transform:rotate(90deg)}.maintenance>summary:hover{color:var(--text)}.maintenance-body{padding:11px 12px 12px;border-top:1px solid var(--line);background:#fff;border-radius:0 0 11px 11px}.maintenance .fw-row input[type=file]{padding:6px 8px;font-size:12px}.maintenance .fw-progress{height:8px;margin-top:7px}.maintenance .fw-status{font-size:12px;margin-top:5px}.maintenance-tag{margin-left:auto;border:1px solid #c5d8cc;border-radius:999px;padding:2px 8px;font-size:11px;color:#4e6f5c;background:#f4faf6}
+.drop-zone{display:flex;align-items:center;gap:13px;border:1.5px dashed #a9c1b2;border-radius:11px;padding:16px;background:var(--card-soft);cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}.drop-zone:hover,.drop-zone:focus-visible{border-color:#70ad84;background:#f2faf5}.drop-zone.dragging{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px rgba(7,148,71,.10) inset}.drop-zone.has-file{border-style:solid;border-color:#75ba8d;background:#f1faf5}.drop-icon{width:46px;height:40px;display:grid;place-items:center;flex:0 0 auto;border:1px solid #afd0bc;border-radius:9px;background:#fff;color:var(--accent-dark);font:800 12px ui-monospace,SFMono-Regular,Consolas,monospace}.drop-copy{display:flex;flex-direction:column;min-width:0;flex:1}.drop-copy strong{font-size:14px}.drop-name{color:var(--muted);font-size:12px;margin-top:2px;overflow-wrap:anywhere}.drop-zone.has-file .drop-name{color:var(--ok-dark)}.drop-browse{flex:0 0 auto}.fw-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.modal{position:fixed;inset:0;z-index:1000;background:rgba(12,32,21,.44);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:18px}.modal.hidden{display:none}.modal-box{width:min(760px,100%);max-height:90vh;overflow:auto;background:var(--card);border:1px solid #cbd9d0;border-radius:14px;box-shadow:var(--shadow-lg)}.modal-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(255,255,255,.97);z-index:1}.modal-head::before{content:"";width:4px;height:22px;border-radius:999px;background:var(--accent);flex:0 0 auto}.modal-head h2{font-size:17px;margin:0;flex:1;color:#153325}.modal-close{font-size:20px;line-height:1;padding:5px 9px;background:#fff}.modal-body{padding:16px}.modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line);position:sticky;bottom:0;background:rgba(255,255,255,.98)}
+.fw-title{font-size:17px;font-weight:750;margin-bottom:4px}.fw-subtitle{color:var(--muted);margin-bottom:14px}.fw-info-grid{display:grid;grid-template-columns:minmax(125px,auto) 1fr;gap:6px 14px;margin:10px 0}.fw-info-grid .label{color:var(--muted)}.fw-info-grid .value{min-width:0}.mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.hash{word-break:break-all;font-size:12px}.checklist{display:grid;gap:5px;margin:14px 0}.check-ok{color:var(--ok-dark)}.check-bad{color:var(--bad)}.check-warn{color:var(--warn)}.module-table{width:100%;border-collapse:collapse;margin-top:8px}.module-table td{padding:5px 6px;border-bottom:1px solid var(--line)}.module-table td:last-child{text-align:right;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.fw-question{margin-top:16px;font-weight:700}.fw-invalid{padding:10px;border:1px solid #e1aaa5;border-radius:8px;background:var(--bad-soft);color:#922721}.fw-compare{border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0;background:var(--card-soft)}.fw-compare-row{display:grid;grid-template-columns:105px 1fr auto;gap:10px;align-items:center;padding:4px 0}.fw-compare-row .k{color:var(--muted)}.fw-version{font:650 15px ui-monospace,SFMono-Regular,Consolas,monospace}.fw-id{color:var(--muted);font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.fw-change{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-weight:700}.badge{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 8px;font-size:12px;font-weight:650}.badge.ok{border-color:#9bceb0;background:var(--ok-soft)}.badge.warn{border-color:#e0c37b;color:var(--warn);background:var(--warn-soft)}.badge.bad{border-color:#e2aba7;background:var(--bad-soft)}.fw-tech{margin-top:12px}.fw-tech>summary{cursor:pointer;color:var(--muted);font-weight:650}.fw-tech[open]>summary{margin-bottom:10px}
+.console-inline{margin-top:18px}.console-inline-host{display:flex;flex-direction:column;min-height:540px}.console-panel{display:flex;flex-direction:column;background:var(--term-bg);flex:1;min-height:0}.console-inline-host .console-panel{min-height:540px}body.console-window{overflow:hidden;background:var(--term-bg)}body.console-window main{max-width:none;margin:0;padding:0;height:100vh}body.console-window .top,body.console-window .maintenance,body.console-window .grid,body.console-window .fw-card,body.console-window #fwModal,body.console-window #esp32Modal{display:none!important}body.console-window .console-inline{margin:0;border:0;border-radius:0;height:100vh}body.console-window .console-inline-host,body.console-window .console-panel{height:100vh;min-height:0}body.console-window #term{flex:1}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid #263b30;background:#122219;color:#deeee4}.toolbar .muted{color:#91aa9a}.toolbar button,.toolbar select{background:#172b20;border-color:#355344;color:#dcece2}.toolbar button:hover:not(:disabled),.toolbar select:hover{background:#1e3528;border-color:#4d755e}.toolbar label{display:flex;align-items:center;gap:6px;color:#b9cec0;white-space:nowrap}.toolbar input[type=checkbox]{accent-color:#31b965}.toolbar-spacer{flex:1}.terminal-card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}#term{flex:1;min-height:0;overflow:auto;padding:13px 14px;background:var(--term-bg);color:var(--term-fg);font:13px/1.38 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;tab-size:8;scrollbar-color:#446452 #0c1711}.term-archive,.term-archive-chunk{white-space:pre}.term-archive-chunk{margin:0;padding:0}.term-line{min-height:1.38em;white-space:pre}.term-line span{white-space:pre}.sendbar{display:flex;gap:8px;padding:11px 12px;border-top:1px solid #263b30;background:#122219}.sendbar #cmd{flex:1;min-width:0;background:#0e1b14;border-color:#3b5a49;color:#e4f2e9}.sendbar #cmd::placeholder{color:#789082}.sendbar #eol{background:#172b20;border-color:#355344;color:#dcece2}.sendbar button{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}.sendbar button:hover:not(:disabled){background:#12a552;border-color:#12a552}
+@media(max-width:700px){main{padding:15px 12px 24px}.top{align-items:flex-start}h1{font-size:21px}.top-actions{width:100%}.console-open-btn{flex:1}.grid{grid-template-columns:1fr}.rssi-readout{min-width:132px}.rssi-meter{width:68px}.hide-mobile{display:none}.fw-compare-row{grid-template-columns:92px 1fr}.fw-compare-row .fw-id{grid-column:2}.modal{padding:7px}.modal-body{padding:12px}.drop-zone{padding:12px;align-items:flex-start;flex-wrap:wrap}.drop-copy{min-width:calc(100% - 62px)}.drop-browse{width:100%}.maintenance .fw-row input[type=file]{min-width:100%}.console-inline-host{min-height:55vh}.toolbar{gap:6px;padding:8px}.toolbar-spacer{display:none}.toolbar button{padding:7px 9px}.sendbar{flex-wrap:wrap;padding:8px}.sendbar #cmd{flex-basis:100%}.sendbar #eol{flex:1}.sendbar button{min-width:92px}#term{padding:10px;height:auto}.console-meta{display:none}}
+</style>
+</head>
+<body>
+<main>
+<div class="top">
+  <div class="brand">
+    <div class="brand-copy"><h1>RPI USB WiFi Bridge</h1><div class="sub">version <span id="bridgeVersion">v1.0</span></div></div>
+  </div>
+  <div class="top-actions">
+    <button class="top-action console-open-btn" type="button" onclick="openConsoleWindow()"><span class="console-glyph">&gt;_</span><span>Konsole öffnen</span></button>
+    <span id="wsPill" class="pill bad">WebSocket getrennt</span>
+    <button id="espRestartBtn" class="icon-btn restart-btn" type="button" onclick="restartEsp32()" title="ESP32 neu starten" aria-label="ESP32 neu starten">⟳</button>
+  </div>
+</div>
+
+<details class="maintenance" id="esp32UpdatePanel">
+  <summary><span>ESP32 Bridge-Firmware aktualisieren</span><span class="maintenance-tag">Wartung</span></summary>
+  <div class="maintenance-body">
+    <div class="fw-row">
+      <input id="esp32File" type="file" accept=".bin,application/octet-stream">
+      <button id="esp32UploadBtn" onclick="prepareEsp32Dialog()" disabled>ESP32 aktualisieren</button>
+    </div>
+    <progress id="esp32Progress" class="fw-progress" max="100" value="0"></progress>
+    <div id="esp32Status" class="fw-status">ESP32-IDF-Firmware (.bin) auswählen.</div>
+    <div class="fw-actions"><button id="wifiSetupBtn" type="button" onclick="startWifiSetup()">WLAN neu einrichten</button></div>
+    <div id="wifiSetupStatus" class="fw-status">Startet bei Bedarf den WLAN-Konfigurations-AP.</div>
+  </div>
+</details>
+
+<div class="grid">
+  <section class="card"><h2>Verbindungen</h2>
+    <div class="row"><span>WLAN</span><b id="wifi" class="bad">–</b></div>
+    <div class="row"><span>IP</span><span id="ip" class="v">–</span></div>
+    <div class="row"><span>RSSI</span><span class="rssi-readout"><span id="rssi" class="v">–</span><span id="rssiMeter" class="rssi-meter" title="WLAN-Qualität"><span id="rssiBar" class="rssi-fill"></span></span></span></div>
+    <div class="row"><span>USB CDC</span><b id="usb" class="bad">–</b></div>
+    <div class="row"><span>RP2 Bootloader</span><b id="msc" class="idle">nicht aktiv</b></div>
+    <div class="row"><span>TCP :<span id="tcpPort">3333</span></span><b id="tcp" class="idle">kein Client</b></div>
+    <div class="row"><span>Browser-Terminal</span><b id="ws" class="bad">–</b></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>USB-Gerät</h2><button id="usbRefreshBtn" class="icon-btn" type="button" onclick="refreshUsbInfo()" title="USB-Gerät und Firmware-Version neu einlesen" aria-label="USB-Gerät und Firmware-Version neu einlesen">↻</button></div>
+    <div class="row"><span>VID:PID</span><span id="vidpid" class="v">–</span></div>
+    <div class="row"><span>Gerät</span><span id="product" class="v">–</span></div>
+    <div class="row"><span>Chipfamilie</span><span id="rpFamily" class="v">–</span></div>
+    <div class="row"><span>Firmware</span><span id="rpFirmwareVersion" class="v">–</span></div>
+    <div class="row"><span>Seriennummer</span><span id="serial" class="v">–</span></div>
+    <div class="row"><span>USB / Device</span><span id="usbver" class="v">–</span></div>
+    <div class="row"><span>CDC Parameter</span><span id="cdcLine" class="v">–</span></div>
+    <div class="row"><span>DTR / RTS</span><span id="cdcCtl" class="v">–</span></div>
+  </section>
+
+  <section class="card"><div class="card-head"><h2>Datenzähler</h2><button id="statsResetBtn" class="icon-btn" type="button" onclick="resetStats()" title="Datenzähler zurücksetzen" aria-label="Datenzähler zurücksetzen">↺</button></div><div class="stats">
+    <span>USB RX</span><span id="usbRx" class="n">0 B</span>
+    <span>USB TX</span><span id="usbTx" class="n">0 B</span>
+    <span>TCP RX</span><span id="tcpRx" class="n">0 B</span>
+    <span>TCP TX</span><span id="tcpTx" class="n">0 B</span>
+    <span>Web RX</span><span id="wsRx" class="n">0 B</span>
+    <span>Web TX</span><span id="wsTx" class="n">0 B</span>
+    <span>Verworfen</span><span id="drops" class="n">0 B</span>
+    <span class="group-start">Heap frei</span><span id="heapFree" class="n group-start">–</span>
+    <span>Heap Minimum</span><span id="heapMin" class="n">–</span>
+    <span>Uptime</span><span id="uptime" class="n">–</span>
+  </div></section>
+
+  <section class="card"><h2>RP MCU Bootloader</h2>
+    <div id="bootInfo" class="muted">Status wird geprüft…</div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="bootBtn" onclick="enterBootloader()" disabled>In Bootloader wechseln</button><button id="startBtn" onclick="startFirmware()" disabled>Firmware starten</button><button id="nukeBtn" class="danger" onclick="flashNuke()" disabled>Flash Nuke</button></div>
+  </section>
+</div>
+
+<section class="card fw-card">
+  <h2>RP MCU Firmware-Update</h2>
+  <div id="fwDropZone" class="drop-zone" tabindex="0" role="button" aria-label="UF2-Datei auswählen oder hier ablegen">
+    <div class="drop-icon">UF2</div>
+    <div class="drop-copy">
+      <strong>Firmware hier ablegen</strong>
+      <span id="fwDropName" class="drop-name">UF2 per Drag &amp; Drop oder Datei auswählen</span>
+    </div>
+    <button id="fwBrowseBtn" class="drop-browse" type="button">Datei auswählen</button>
+    <input id="fwFile" type="file" accept=".uf2,application/octet-stream" hidden>
+  </div>
+  <div class="fw-actions">
+    <button id="fwUploadBtn" onclick="uploadFirmware()" disabled>UF2 flashen</button>
+    <button id="fwRetryBtn" onclick="retryStagedFirmware()" hidden>Erneut aus Puffer schreiben</button>
+  </div>
+  <progress id="fwProgress" class="fw-progress" max="100" value="0"></progress>
+  <div id="fwStatus" class="fw-status">UF2-Datei auswählen oder in das Feld ziehen.</div>
+</section>
+
+<div id="fwModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="fwModalTitle">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="fwModalTitle">Firmware-Analyse</h2><button class="modal-close" type="button" onclick="closeFirmwareDialog()" aria-label="Schließen">×</button></div>
+    <div id="fwModalBody" class="modal-body"></div>
+    <div class="modal-actions"><button type="button" onclick="closeFirmwareDialog()">Abbrechen</button><button id="fwModalFlash" class="primary" type="button" onclick="confirmFirmwareFlash()">Firmware flashen</button></div>
+  </div>
+</div>
+
+<div id="esp32Modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="esp32ModalTitle">
+  <div class="modal-box">
+    <div class="modal-head"><h2 id="esp32ModalTitle">ESP32 Firmware-Update</h2><button class="modal-close" type="button" onclick="closeEsp32Dialog()" aria-label="Schließen">×</button></div>
+    <div id="esp32ModalBody" class="modal-body"></div>
+    <div class="modal-actions"><button type="button" onclick="closeEsp32Dialog()">Abbrechen</button><button id="esp32ModalFlash" class="primary" type="button" onclick="confirmEsp32Flash()">ESP32 aktualisieren</button></div>
+  </div>
+</div>
+
+
+
+<section class="terminal-card console-inline">
+  <div id="consoleInlineHost" class="console-inline-host">
+    <div id="consolePanel" class="console-panel">
+      <div class="toolbar">
+        <b>Serielle Konsole</b>
+        <span id="termState" class="muted">verbinde…</span>
+        <span class="toolbar-spacer"></span>
+        <label><input id="autoscroll" type="checkbox" checked> Autoscroll</label>
+        <button id="copyLogBtn" type="button" onclick="copyTerminalLog()">Log kopieren</button>
+        <button type="button" onclick="clearTerminalLog()">Leeren</button>
+        <button type="button" onclick="sendRaw(new Uint8Array([3]))">Ctrl+C</button>
+        <button type="button" onclick="sendRaw(new Uint8Array([27]))">ESC senden</button>
+      </div>
+      <div id="term" role="log" aria-label="Serielle Konsole"></div>
+      <div class="sendbar">
+        <input id="cmd" class="grow" type="text" autocomplete="off" spellcheck="false" placeholder="Befehl eingeben…">
+        <select id="eol" title="Zeilenende"><option value="crlf">CRLF</option><option value="lf">LF</option><option value="cr">CR</option><option value="none">kein</option></select>
+        <button type="button" onclick="sendLine()">Senden</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+const $=id=>document.getElementById(id), term=$('term');
+let wsock=null,retry=null,retryDelay=1500,fwLocalBusy=false,esp32LocalBusy=false,lastBridgeStatus=null;
+let pollTimer=null,pollBusy=false,copyFeedbackTimer=null,lastUsbDiagSeq=null,lastUsbOpenFailCount=0,lastStatusFetchWarn=0;
+
+function syncModalScrollLock(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal:not(.hidden)'))}
+function openConsoleWindow(){
+  const url=new URL(location.href);url.searchParams.set('console','1');
+  const w=window.open(url.toString(),'rpiUsbWifiConsole','width=1100,height=750,resizable=yes,scrollbars=no');
+  if(w)w.focus();
+}
+const consoleWindowMode=new URLSearchParams(location.search).get('console')==='1';
+if(consoleWindowMode){document.body.classList.add('console-window');document.title='RPI USB WiFi Bridge · Konsole'}
+function mark(id,state,text){const e=$(id);e.textContent=text;e.classList.remove('ok','bad','idle');e.classList.add(state)}
+function setState(id,on,yes='verbunden',no='getrennt'){mark(id,on?'ok':'bad',on?yes:no)}
+function hex4(n){return Number(n||0).toString(16).toUpperCase().padStart(4,'0')}
+function bcd(n){return ((n>>8)&255).toString(16).padStart(2,'0').replace(/^0/,'')+'.'+(n&255).toString(16).padStart(2,'0')}
+function bytes(n){n=Number(n||0);if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(1)+' KiB';return (n/1048576).toFixed(2)+' MiB'}
+function dur(sec){sec=Math.floor(sec||0);let d=Math.floor(sec/86400),h=Math.floor(sec%86400/3600),m=Math.floor(sec%3600/60),s=sec%60;return (d?d+'d ':'')+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
+function updateRssi(connected,rssi){
+  const value=$('rssi'),bar=$('rssiBar'),meter=$('rssiMeter');
+  bar.classList.remove('warn','good');
+  if(!connected||!Number.isFinite(Number(rssi))){value.textContent='–';bar.style.width='0%';meter.title='WLAN nicht verbunden';return}
+  const dbm=Number(rssi),quality=Math.max(0,Math.min(100,Math.round(2*(dbm+100))));
+  value.textContent=dbm+' dBm';bar.style.width=quality+'%';
+  if(dbm>=-67)bar.classList.add('good');else if(dbm>=-80)bar.classList.add('warn');
+  let rating=dbm>=-55?'sehr gut':dbm>=-67?'gut':dbm>=-70?'brauchbar':dbm>=-80?'schwach':'sehr schwach';
+  meter.title='WLAN-Qualität: '+quality+' % · '+rating;
+}
+
+const ANSI16=['#0c0c0c','#c50f1f','#13a10e','#c19c00','#0037da','#881798','#3a96dd','#cccccc','#767676','#e74856','#16c60c','#f9f1a5','#3b78ff','#b4009e','#61d6d6','#f2f2f2'];
+function ansiColor(n){
+  n=Number(n);if(n<16)return ANSI16[n];
+  if(n>=16&&n<=231){let x=n-16,r=Math.floor(x/36),g=Math.floor(x%36/6),b=x%6,c=v=>v===0?0:55+v*40;return `rgb(${c(r)},${c(g)},${c(b)})`}
+  if(n>=232&&n<=255){let v=8+(n-232)*10;return `rgb(${v},${v},${v})`}
+  return null;
+}
+
+class MiniVT100{
+  constructor(el,maxLines=1500,archiveChunkLines=200,archiveMaxChunks=256){
+    this.el=el;this.maxLines=maxLines;this.archiveChunkLines=archiveChunkLines;this.archiveMaxChunks=archiveMaxChunks;this.decoder=new TextDecoder('utf-8',{fatal:false});this.styleCache=new WeakMap();this.resetState();this.clear();
+  }
+  resetState(){this.state='normal';this.csi='';this.oscEsc=false;this.savedRow=0;this.savedCol=0;this.style=this.defaultStyle()}
+  defaultStyle(){return {fg:null,bg:null,bold:false,dim:false,underline:false,inverse:false}}
+  newLine(){let el=document.createElement('div');el.className='term-line';return {cells:[],el,dirty:true}}
+  lineText(line){return line.cells.map(cell=>cell.ch).join('').replace(/[ \t]+$/,'')}
+  newArchiveChunk(){let el=document.createElement('div');el.className='term-archive-chunk';this.archiveEl.appendChild(el);this.archiveCurrentEl=el;this.archiveCurrent=[]}
+  clear(){
+    this.el.replaceChildren();this.archiveEl=document.createElement('div');this.archiveEl.className='term-archive';this.el.appendChild(this.archiveEl);this.archiveChunks=[];this.archiveCurrent=[];this.newArchiveChunk();this.lines=[this.newLine()];this.el.appendChild(this.lines[0].el);this.row=0;this.col=0;this.savedRow=0;this.savedCol=0;this.style=this.defaultStyle();this.state='normal';this.csi='';this.scheduleRender();
+  }
+  archiveLines(lines){
+    for(const line of lines){
+      this.archiveCurrent.push(this.lineText(line));
+      if(this.archiveCurrent.length>=this.archiveChunkLines){
+        this.archiveCurrentEl.textContent=this.archiveCurrent.join('\n')+'\n';
+        this.archiveChunks.push(this.archiveCurrentEl);
+        while(this.archiveChunks.length>this.archiveMaxChunks){const old=this.archiveChunks.shift();old.remove()}
+        this.newArchiveChunk();
+      }
+    }
+    if(this.archiveCurrent.length)this.archiveCurrentEl.textContent=this.archiveCurrent.join('\n')+'\n';
+  }
+  getText(){
+    let archive=this.archiveChunks.map(el=>el.textContent).join('');
+    if(this.archiveCurrent.length)archive+=this.archiveCurrent.join('\n')+'\n';
+    const rows=this.lines.map(line=>this.lineText(line));
+    while(rows.length>1&&rows[rows.length-1]==='')rows.pop();
+    return archive+rows.join('\n');
+  }
+  ensureRow(r){while(this.lines.length<=r){let line=this.newLine();this.lines.push(line);this.el.appendChild(line.el)}return this.lines[r]}
+  trim(){if(this.lines.length<=this.maxLines)return;let n=this.lines.length-this.maxLines,old=this.lines.slice(0,n);this.archiveLines(old);for(const line of old)line.el.remove();this.lines.splice(0,n);this.row=Math.max(0,this.row-n);this.savedRow=Math.max(0,this.savedRow-n)}
+  cloneStyle(change={}){this.style={...this.style,...change}}
+  writeChar(ch){
+    let line=this.ensureRow(this.row);while(line.cells.length<this.col)line.cells.push({ch:' ',style:this.defaultStyle()});
+    let cell={ch,style:this.style};if(this.col<line.cells.length)line.cells[this.col]=cell;else line.cells.push(cell);this.col++;line.dirty=true;
+  }
+  writeText(text){for(const ch of text)this.writeChar(ch)}
+  lineFeed(){this.row++;this.col=0;this.ensureRow(this.row);this.trim()}
+  carriageReturn(){this.col=0}
+  backspace(){if(this.col>0)this.col--}
+  tab(){let next=(Math.floor(this.col/8)+1)*8;while(this.col<next)this.writeChar(' ')}
+  eraseLine(mode){let line=this.ensureRow(this.row);if(mode===2){line.cells=[]}else if(mode===1){let end=Math.min(this.col,line.cells.length-1);for(let i=0;i<=end;i++)line.cells[i]={ch:' ',style:this.style}}else{if(this.col<line.cells.length)line.cells.length=this.col}line.dirty=true}
+  eraseChars(n){let line=this.ensureRow(this.row);for(let i=0;i<n;i++){let p=this.col+i;if(p<line.cells.length)line.cells[p]={ch:' ',style:this.style}}line.dirty=true}
+  deleteChars(n){let line=this.ensureRow(this.row);if(this.col<line.cells.length)line.cells.splice(this.col,n);line.dirty=true}
+  insertBlanks(n){let line=this.ensureRow(this.row);let blanks=Array.from({length:n},()=>({ch:' ',style:this.style}));line.cells.splice(Math.min(this.col,line.cells.length),0,...blanks);line.dirty=true}
+  eraseDisplay(mode){
+    if(mode===2||mode===3){this.clear();return}
+    if(mode===0){this.eraseLine(0);for(let r=this.row+1;r<this.lines.length;r++){this.lines[r].cells=[];this.lines[r].dirty=true}}
+    else if(mode===1){for(let r=0;r<this.row;r++){this.lines[r].cells=[];this.lines[r].dirty=true}this.eraseLine(1)}
+  }
+  sgr(params){
+    if(!params.length)params=[0];
+    for(let i=0;i<params.length;i++){
+      let p=params[i]??0;
+      if(p===0)this.style=this.defaultStyle();
+      else if(p===1)this.cloneStyle({bold:true,dim:false});
+      else if(p===2)this.cloneStyle({dim:true,bold:false});
+      else if(p===4)this.cloneStyle({underline:true});
+      else if(p===7)this.cloneStyle({inverse:true});
+      else if(p===22)this.cloneStyle({bold:false,dim:false});
+      else if(p===24)this.cloneStyle({underline:false});
+      else if(p===27)this.cloneStyle({inverse:false});
+      else if(p>=30&&p<=37)this.cloneStyle({fg:ANSI16[p-30]});
+      else if(p===39)this.cloneStyle({fg:null});
+      else if(p>=40&&p<=47)this.cloneStyle({bg:ANSI16[p-40]});
+      else if(p===49)this.cloneStyle({bg:null});
+      else if(p>=90&&p<=97)this.cloneStyle({fg:ANSI16[8+p-90]});
+      else if(p>=100&&p<=107)this.cloneStyle({bg:ANSI16[8+p-100]});
+      else if((p===38||p===48)&&params[i+1]===5&&params[i+2]!=null){let c=ansiColor(params[i+2]);this.cloneStyle(p===38?{fg:c}:{bg:c});i+=2}
+      else if((p===38||p===48)&&params[i+1]===2&&params[i+4]!=null){let c=`rgb(${params[i+2]},${params[i+3]},${params[i+4]})`;this.cloneStyle(p===38?{fg:c}:{bg:c});i+=4}
+    }
+  }
+  csiExec(final,raw){
+    let body=raw.replace(/^[?>!]/,'');let params=body===''?[]:body.split(';').map(v=>v===''?null:Number(v));let p=(i,d=1)=>params[i]==null?d:Math.max(0,params[i]);
+    switch(final){
+      case 'm':this.sgr(params);break;
+      case 'K':this.eraseLine(p(0,0));break;
+      case 'J':this.eraseDisplay(p(0,0));break;
+      case 'A':this.row=Math.max(0,this.row-p(0));break;
+      case 'B':this.row+=p(0);this.ensureRow(this.row);this.trim();break;
+      case 'C':this.col+=p(0);break;
+      case 'D':this.col=Math.max(0,this.col-p(0));break;
+      case 'E':this.row+=p(0);this.col=0;this.ensureRow(this.row);this.trim();break;
+      case 'F':this.row=Math.max(0,this.row-p(0));this.col=0;break;
+      case 'G':case '`':this.col=Math.max(0,p(0)-1);break;
+      case 'd':this.row=Math.max(0,p(0)-1);this.ensureRow(this.row);this.trim();break;
+      case 'H':case 'f':this.row=Math.max(0,p(0)-1);this.col=Math.max(0,p(1)-1);this.ensureRow(this.row);this.trim();break;
+      case 's':this.savedRow=this.row;this.savedCol=this.col;break;
+      case 'u':this.row=this.savedRow;this.col=this.savedCol;this.ensureRow(this.row);break;
+      case 'P':this.deleteChars(p(0));break;
+      case '@':this.insertBlanks(p(0));break;
+      case 'X':this.eraseChars(p(0));break;
+      default:break;
+    }
+  }
+  flushText(buf){if(!buf.length)return;let text=this.decoder.decode(new Uint8Array(buf),{stream:true});if(text)this.writeText(text);buf.length=0}
+  feed(data){
+    let text=[];
+    for(let i=0;i<data.length;i++){
+      let b=data[i];
+      if(this.state==='osc'){
+        if(this.oscEsc){this.oscEsc=false;if(b===0x5c){this.state='normal';continue}}
+        if(b===0x07){this.state='normal';continue}if(b===0x1b){this.oscEsc=true}continue;
+      }
+      if(this.state==='esc'){
+        this.state='normal';
+        if(b===0x5b){this.state='csi';this.csi='';continue}
+        if(b===0x5d){this.state='osc';this.oscEsc=false;continue}
+        if(b===0x37){this.savedRow=this.row;this.savedCol=this.col;continue}
+        if(b===0x38){this.row=this.savedRow;this.col=this.savedCol;this.ensureRow(this.row);continue}
+        if(b===0x44){this.lineFeed();continue}
+        if(b===0x45){this.lineFeed();continue}
+        if(b===0x4d){this.row=Math.max(0,this.row-1);continue}
+        if(b===0x63){this.resetState();continue}
+        continue;
+      }
+      if(this.state==='csi'){
+        if(b>=0x40&&b<=0x7e){this.csiExec(String.fromCharCode(b),this.csi);this.state='normal';this.csi='';continue}
+        if(this.csi.length<64)this.csi+=String.fromCharCode(b);else{this.state='normal';this.csi=''}continue;
+      }
+      if(b===0x1b){this.flushText(text);this.state='esc';continue}
+      if(b===0x9b){this.flushText(text);this.state='csi';this.csi='';continue}
+      if(b===0x9d){this.flushText(text);this.state='osc';this.oscEsc=false;continue}
+      if(b===0x08){this.flushText(text);this.backspace();continue}
+      if(b===0x09){this.flushText(text);this.tab();continue}
+      if(b===0x0a){this.flushText(text);this.lineFeed();continue}
+      if(b===0x0d){this.flushText(text);this.carriageReturn();continue}
+      if(b===0x0c){this.flushText(text);this.clear();continue}
+      if(b<0x20||b===0x7f)continue;
+      text.push(b);
+    }
+    this.flushText(text);this.scheduleRender();
+  }
+  styleCss(s){
+    let cached=this.styleCache.get(s);if(cached!==undefined)return cached;
+    let fg=s.fg,bg=s.bg;if(s.inverse){let x=fg;fg=bg;bg=x}let css='';
+    if(fg)css+=`color:${fg};`;if(bg)css+=`background:${bg};`;if(s.bold)css+='font-weight:700;';if(s.dim)css+='opacity:.72;';if(s.underline)css+='text-decoration:underline;';this.styleCache.set(s,css);return css;
+  }
+  renderLine(line){
+    if(!line.dirty)return;line.dirty=false;let frag=document.createDocumentFragment();
+    if(!line.cells.length){line.el.replaceChildren();line.el.textContent=' ';return}
+    let start=0;
+    while(start<line.cells.length){let st=line.cells[start].style,end=start+1;while(end<line.cells.length&&line.cells[end].style===st)end++;let span=document.createElement('span');span.textContent=line.cells.slice(start,end).map(c=>c.ch).join('');let css=this.styleCss(st);if(css)span.style.cssText=css;frag.appendChild(span);start=end}
+    line.el.replaceChildren(frag);
+  }
+  scheduleRender(){if(this.pending)return;this.pending=true;requestAnimationFrame(()=>{this.pending=false;for(const l of this.lines)this.renderLine(l);if($('autoscroll').checked)this.el.scrollTop=this.el.scrollHeight})}
+}
+
+const vt=new MiniVT100(term);
+
+const LOG_COPY_MAX_BYTES=4*1024*1024;
+let logChunks=[],logBytes=0,logChunkHead=0,logDroppedBytes=0;
+function captureLogBytes(data){
+  const c=data.slice();logChunks.push(c);logBytes+=c.length;
+  while(logBytes>LOG_COPY_MAX_BYTES&&logChunkHead<logChunks.length-1){const x=logChunks[logChunkHead++];logBytes-=x.length;logDroppedBytes+=x.length}
+  if(logChunkHead>256&&logChunkHead*2>logChunks.length){logChunks=logChunks.slice(logChunkHead);logChunkHead=0}
+}
+function resetLogCapture(){logChunks=[];logBytes=0;logChunkHead=0;logDroppedBytes=0}
+function capturedLogText(){
+  if(!logBytes)return '';
+  const all=new Uint8Array(logBytes);let o=0;for(let i=logChunkHead;i<logChunks.length;i++){all.set(logChunks[i],o);o+=logChunks[i].length}
+  let t=new TextDecoder('utf-8',{fatal:false}).decode(all);
+  t=t.replace(/\x1B\][^\x07]*(?:\x07|\x1B\\)/g,'').replace(/\x1B\[[0-?]*[ -\/]*[@-~]/g,'').replace(/\x1B[@-_]/g,'');
+  return t.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+}
+function clearTerminalLog(){vt.clear();resetLogCapture()}
+
+function fallbackCopyText(text){
+  const ta=document.createElement('textarea'),active=document.activeElement;
+  ta.value=text;ta.setAttribute('readonly','');ta.setAttribute('aria-hidden','true');
+  ta.style.cssText='position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:.01;font-size:16px;';
+  document.body.appendChild(ta);
+  try{ta.focus({preventScroll:true})}catch(_){ta.focus()}
+  ta.select();ta.setSelectionRange(0,ta.value.length);
+  let ok=false;try{ok=document.execCommand('copy')}catch(_){}
+  ta.remove();
+  if(active&&typeof active.focus==='function'){try{active.focus({preventScroll:true})}catch(_){try{active.focus()}catch(__){}}}
+  return ok;
+}
+function copyLogFeedback(ok,empty=false){
+  const b=$('copyLogBtn');if(!b)return;clearTimeout(copyFeedbackTimer);
+  b.textContent=empty?'Log leer':ok?'Kopiert ✓':'Kopieren fehlgeschlagen';
+  copyFeedbackTimer=setTimeout(()=>{b.textContent='Log kopieren'},1800);
+}
+async function copyTerminalLog(){
+  const text=capturedLogText()||vt.getText();
+  if(!text){copyLogFeedback(false,true);return}
+  if(!window.isSecureContext||!navigator.clipboard||typeof navigator.clipboard.writeText!=='function'){
+    copyLogFeedback(fallbackCopyText(text));return;
+  }
+  try{await navigator.clipboard.writeText(text);copyLogFeedback(true)}
+  catch(_){copyLogFeedback(fallbackCopyText(text))}
+}
+
+function scheduleWsReconnect(){
+ clearTimeout(retry);
+ retry=setTimeout(connectWs,retryDelay);
+ retryDelay=Math.min(Math.round(retryDelay*1.7),10000);
+}
+function connectWs(){
+ clearTimeout(retry);
+ if(wsock&&(wsock.readyState===WebSocket.CONNECTING||wsock.readyState===WebSocket.OPEN))return;
+ let proto=location.protocol==='https:'?'wss':'ws',w=new WebSocket(proto+'://'+location.host+'/ws');w.binaryType='arraybuffer';wsock=w;
+ w.onopen=()=>{console.info('[RPI Bridge][WebSocket] verbunden');retryDelay=1500;mark('wsPill','ok','WebSocket verbunden');mark('ws','ok','verbunden');$('termState').textContent='bereit';schedulePoll(0)};
+ w.onmessage=e=>{let d=typeof e.data==='string'?new TextEncoder().encode(e.data):new Uint8Array(e.data);captureLogBytes(d);vt.feed(d)};
+ w.onclose=e=>{console.warn('[RPI Bridge][WebSocket] getrennt',{code:e.code,reason:e.reason});if(wsock===w)wsock=null;mark('wsPill','bad','WebSocket getrennt');$('termState').textContent='getrennt – Reconnect…';schedulePoll(0);scheduleWsReconnect()};
+ w.onerror=e=>{console.error('[RPI Bridge][WebSocket] Fehler',e);try{w.close()}catch(_){}};
+}
+function sendRaw(data){if(!wsock||wsock.readyState!==WebSocket.OPEN){$('termState').textContent='nicht verbunden';return}wsock.send(data)}
+function sendLine(){let v=$('cmd').value,e=$('eol').value;if(e==='crlf')v+='\r\n';else if(e==='lf')v+='\n';else if(e==='cr')v+='\r';sendRaw(new TextEncoder().encode(v));$('cmd').value='';$('cmd').focus()}
+$('cmd').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendLine()}});
+const UF2_MAGIC0=0x0A324655,UF2_MAGIC1=0x9E5D5157,UF2_MAGIC_END=0x0AB16F30,UF2_FLAG_NOFLASH=0x00000001,UF2_FLAG_FAMILY=0x00002000,UF2_FLAG_EXT_TAGS=0x00008000,OPENKNX_UF2_TAG=0x584E4B;
+const RP_UF2_FAMILIES=new Map([
+ [0xE48BFF56,{chip:'RP2040',name:'RP2040',arch:'Arm',kind:'target'}],
+ [0xE48BFF57,{chip:null,name:'RP2XXX Absolute',arch:null,kind:'aux'}],
+ [0xE48BFF58,{chip:null,name:'RP2XXX Data',arch:null,kind:'aux'}],
+ [0xE48BFF59,{chip:'RP2350/RP2354',name:'RP2350/RP2354 Arm Secure',arch:'Arm',kind:'target'}],
+ [0xE48BFF5A,{chip:'RP2350/RP2354',name:'RP2350/RP2354 RISC-V',arch:'RISC-V',kind:'target'}],
+ [0xE48BFF5B,{chip:'RP2350/RP2354',name:'RP2350/RP2354 Arm Non-secure',arch:'Arm NS',kind:'aux'}]
+]);
+function rpUf2Family(id){return RP_UF2_FAMILIES.get(Number(id)>>>0)||null}
+function currentRpFamily(){const j=lastBridgeStatus||{},fw=j.firmware||{},d=j.device||{};const f=(j.msc&&fw.bootsel_family)||d.family||'';return f&&f!=='RP MCU'?f:null}
+function fwDeviceCompatible(a){const f=currentRpFamily();return !f||!a||!a.chipFamily||f===a.chipFamily}
+let fwAnalysis=null,fwAnalyzeSeq=0,fwDroppedFile=null;
+function fwSelectedFile(){return fwDroppedFile||($('fwFile').files&&$('fwFile').files[0]?$('fwFile').files[0]:null)}
+function updateFwDropUi(){
+  const f=fwSelectedFile(),z=$('fwDropZone'),n=$('fwDropName');
+  if(z)z.classList.toggle('has-file',!!f);
+  if(n)n.textContent=f?`${f.name} · ${bytes(f.size)}`:'UF2 per Drag & Drop oder Datei auswählen';
+}
+function chooseFirmwareFile(){$('fwFile').click()}
+function setDroppedFirmwareFile(file){
+  if(!file)return;
+  if(!file.name.toLowerCase().endsWith('.uf2')){$('fwStatus').textContent='Bitte eine .uf2-Datei ablegen.';return}
+  fwDroppedFile=file;$('fwFile').value='';fwAnalysis=null;$('fwProgress').value=0;updateFwDropUi();prepareFirmwareDialog();
+}
+function fmtInt(n){return new Intl.NumberFormat('de-DE').format(Number(n||0))}
+function hex8(n){return '0x'+Number(n>>>0).toString(16).toUpperCase().padStart(8,'0')}
+function refreshFwButton(){
+  const f=fwSelectedFile();
+  const connected=!!(lastBridgeStatus&&(lastBridgeStatus.usb||lastBridgeStatus.msc));
+  const backendBusy=!!(lastBridgeStatus&&lastBridgeStatus.firmware&&lastBridgeStatus.firmware.busy);
+  const valid=!!(fwAnalysis&&fwAnalysis.valid&&fwAnalysis.file===f),compatible=fwDeviceCompatible(fwAnalysis);
+  $('fwUploadBtn').disabled=!f||!valid||!compatible||!connected||fwLocalBusy||esp32LocalBusy||backendBusy;
+  if(!$('fwModal').classList.contains('hidden')&&fwAnalysis&&fwAnalysis.file===f){$('fwModalFlash').disabled=!valid||!compatible||!connected||fwLocalBusy||esp32LocalBusy||backendBusy;$('fwModalFlash').textContent=!connected?'Kein RP MCU verbunden':(!compatible?'Falsche Chipfamilie':'Firmware flashen')}
+}
+
+function parseUf2ExtensionTags(u8,blockOffset,payloadLength){
+  const tags=[];let p=blockOffset+32+payloadLength,end=blockOffset+508;
+  while(p+4<=end){
+    const size=u8[p],t0=u8[p+1],t1=u8[p+2],t2=u8[p+3];
+    if(size===0||t0===0)break;
+    if(size<4||p+size>end)break;
+    const type=t0|(t1<<8)|(t2<<16),data=u8.slice(p+4,p+size);tags.push({type,size,data});
+    p+=size+((4-(size%4))%4);
+  }
+  return tags;
+}
+function decodeOpenKnxUf2Tag(tag){
+  if(!tag||tag.type!==OPENKNX_UF2_TAG||!tag.data||tag.data.length<4)return null;
+  const d=tag.data,appId=(d[0]<<8)|d[1],major=d[2]>>4,minor=d[2]&0x0F,patch=d[3];
+  return {appId,appIdHex:'0x'+appId.toString(16).toUpperCase().padStart(4,'0'),version:`${major}.${minor}.${patch}`,major,minor,patch};
+}
+function extractAsciiStrings(data,minLen=4){
+  const out=[];let start=-1;
+  for(let i=0;i<=data.length;i++){
+    const b=i<data.length?data[i]:0;
+    if(b>=0x20&&b<=0x7e){if(start<0)start=i;continue}
+    if(start>=0&&i-start>=minLen){let s='';for(let j=start;j<i;j++)s+=String.fromCharCode(data[j]);out.push(s)}
+    start=-1;
+  }
+  return out;
+}
+function plausibleInfoString(s){return !!s&&s.length>=3&&s.length<=90&&!s.includes('%')&&!/^(Name|Number|Version|Serial number|Firmware|Device|Builddate|Buildtime)$/i.test(s)}
+function findFollowing(strings,label,max=5){
+  const i=strings.indexOf(label);if(i<0)return null;
+  for(let j=i+1;j<Math.min(strings.length,i+1+max);j++)if(plausibleInfoString(strings[j]))return strings[j];
+  return null;
+}
+function findBuildValue(strings,label,re){
+  const i=strings.indexOf(label);if(i<0)return null;
+  for(let j=i-1;j>=Math.max(0,i-4);j--)if(re.test(strings[j]))return strings[j];
+  return null;
+}
+function germanBuildDate(s){
+  if(!s)return null;const m=/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+(\d{4})$/.exec(s);if(!m)return s;
+  const months={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};return String(m[2]).padStart(2,'0')+'.'+months[m[1]]+'.'+m[3];
+}
+function detectOpenKnxInfo(strings){
+  const info={openknx:strings.some(s=>s==='OpenKNX'||s.includes('OpenKNX.de')||s.includes('openknx.de')),modules:[]};
+  const di=strings.indexOf('Device');
+  if(di>=0){
+    const cand=[];for(let j=di+1;j<Math.min(strings.length,di+6);j++)if(plausibleInfoString(strings[j]))cand.push(strings[j]);
+    if(cand.length)info.deviceShort=cand[0];if(cand.length>1)info.deviceName=cand[1];
+  }
+  info.firmwareName=findFollowing(strings,'Firmware',4);
+  info.buildDate=germanBuildDate(findBuildValue(strings,'Builddate',/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{4}$/));
+  info.buildTime=findBuildValue(strings,'Buildtime',/^\d{2}:\d{2}:\d{2}$/);
+  const ver=/^\d+\.\d+\.\d+(?:[+-][0-9A-Za-z._-]+)?$/;
+  const name=/^[A-Za-z][A-Za-z0-9_.+-]{2,40}$/;
+  const seen=new Set();
+  for(let i=1;i<strings.length;i++){
+    if(ver.test(strings[i-1])&&name.test(strings[i])&&!seen.has(strings[i])){seen.add(strings[i]);info.modules.push({name:strings[i],version:strings[i-1]})}
+  }
+  return info;
+}
+function rotr32(x,n){return (x>>>n)|(x<<(32-n))}
+function sha256Fallback(bytesIn){
+  const K=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+  const len=bytesIn.length,total=Math.ceil((len+9)/64)*64,msg=new Uint8Array(total);msg.set(bytesIn);msg[len]=0x80;const dv=new DataView(msg.buffer);dv.setUint32(total-8,Math.floor(len/0x20000000),false);dv.setUint32(total-4,(len*8)>>>0,false);
+  let h0=0x6a09e667,h1=0xbb67ae85,h2=0x3c6ef372,h3=0xa54ff53a,h4=0x510e527f,h5=0x9b05688c,h6=0x1f83d9ab,h7=0x5be0cd19;const w=new Uint32Array(64);
+  for(let o=0;o<total;o+=64){for(let i=0;i<16;i++)w[i]=dv.getUint32(o+i*4,false);for(let i=16;i<64;i++){const a=w[i-15],b=w[i-2],s0=rotr32(a,7)^rotr32(a,18)^(a>>>3),s1=rotr32(b,17)^rotr32(b,19)^(b>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)>>>0}let a=h0,b=h1,c=h2,d=h3,e=h4,f=h5,g=h6,h=h7;for(let i=0;i<64;i++){const S1=rotr32(e,6)^rotr32(e,11)^rotr32(e,25),ch=(e&f)^((~e)&g),t1=(h+S1+ch+K[i]+w[i])>>>0,S0=rotr32(a,2)^rotr32(a,13)^rotr32(a,22),maj=(a&b)^(a&c)^(b&c),t2=(S0+maj)>>>0;h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0}h0=(h0+a)>>>0;h1=(h1+b)>>>0;h2=(h2+c)>>>0;h3=(h3+d)>>>0;h4=(h4+e)>>>0;h5=(h5+f)>>>0;h6=(h6+g)>>>0;h7=(h7+h)>>>0}
+  return [h0,h1,h2,h3,h4,h5,h6,h7].map(x=>x.toString(16).padStart(8,'0')).join('');
+}
+async function sha256Hex(buffer){
+  try{if(globalThis.crypto&&crypto.subtle){const h=await crypto.subtle.digest('SHA-256',buffer);return Array.from(new Uint8Array(h),b=>b.toString(16).padStart(2,'0')).join('')}}catch(_){}
+  return sha256Fallback(new Uint8Array(buffer));
+}
+async function analyzeUf2File(file){
+  const result={file,fileBytes:file.size,valid:false,errors:[],warnings:[],checks:[],modules:[]};
+  if(!file.name.toLowerCase().endsWith('.uf2'))result.errors.push('Dateiendung ist nicht .uf2');
+  if(file.size<512||file.size%512!==0){result.errors.push('Dateigröße ist kein Vielfaches von 512 Byte');return result}
+  const buffer=await file.arrayBuffer(),u8=new Uint8Array(buffer),v=new DataView(buffer),total=file.size/512,blocks=[],openKnxTags=[];
+  const seenBlocks=new Set(),targetIds=new Set(),auxIds=new Set(),familyDecl=new Map(),unknownFamilies=new Set();
+  let payloadBytes=0,magicOk=true,counterOk=true,payloadOk=true,duplicates=0;
+  for(let i=0;i<total;i++){
+    const o=i*512,m0=v.getUint32(o,true),m1=v.getUint32(o+4,true),flags=v.getUint32(o+8,true),target=v.getUint32(o+12,true),plen=v.getUint32(o+16,true),blockNo=v.getUint32(o+20,true),numBlocks=v.getUint32(o+24,true),family=v.getUint32(o+28,true)>>>0,end=v.getUint32(o+508,true);
+    if(m0!==UF2_MAGIC0||m1!==UF2_MAGIC1||end!==UF2_MAGIC_END)magicOk=false;
+    if(plen!==256)payloadOk=false;
+    const fi=(flags&UF2_FLAG_FAMILY)?rpUf2Family(family):null;
+    if(!fi){unknownFamilies.add(family)}else{
+      if(fi.kind==='target')targetIds.add(family);else auxIds.add(family);
+      const key=`${family}:${blockNo}`;if(seenBlocks.has(key))duplicates++;else seenBlocks.add(key);
+      const declared=familyDecl.get(family);if(declared!==undefined&&declared!==numBlocks)counterOk=false;else if(declared===undefined)familyDecl.set(family,numBlocks);
+      if(numBlocks===0||numBlocks>total||blockNo>=numBlocks)counterOk=false;
+    }
+    if(!(flags&UF2_FLAG_NOFLASH)&&plen>0&&plen<=476){blocks.push({target,plen,data:u8.slice(o+32,o+32+plen),family});payloadBytes+=plen}
+    if((flags&UF2_FLAG_EXT_TAGS)&&!(flags&UF2_FLAG_NOFLASH)&&plen<=476){for(const tag of parseUf2ExtensionTags(u8,o,plen))if(tag.type===OPENKNX_UF2_TAG)openKnxTags.push(tag)}
+  }
+  const targetId=targetIds.size===1?[...targetIds][0]:null,targetInfo=targetId!==null?rpUf2Family(targetId):null;
+  const auxFamilies=[...auxIds].map(id=>({id,info:rpUf2Family(id)})).filter(x=>x.info);
+  const familyOk=unknownFamilies.size===0&&targetIds.size===1;
+  if(!magicOk)result.errors.push('UF2-Magic ist in mindestens einem Block ungültig');
+  if(unknownFamilies.size)result.errors.push('UF2 enthält nicht unterstützte oder fehlende Family-IDs');
+  if(targetIds.size===0)result.errors.push('UF2 enthält keine ausführbare RP-MCU-Zielfamilie');
+  if(targetIds.size>1)result.errors.push('UF2 enthält mehrere ausführbare Zielfamilien; Universal-Firmware wird noch nicht automatisch ausgewählt');
+  if(!payloadOk)result.errors.push('Mindestens ein Block hat nicht die erwartete 256-Byte-Payload');
+  if(!counterOk)result.errors.push('UF2-Blockzähler ist für mindestens eine Family-ID unplausibel');
+  if(duplicates)result.errors.push(`${duplicates} doppelte UF2-Blocknummer(n) innerhalb derselben Family-ID erkannt`);
+  if(!blocks.length)result.errors.push('Keine flashbaren UF2-Blöcke enthalten');
+  const targetBlocks=targetId!==null?blocks.filter(b=>b.family===targetId):blocks.slice();targetBlocks.sort((a,b)=>a.target-b.target);
+  let overlaps=0,gaps=0,minAddr=targetBlocks.length?targetBlocks[0].target:null,maxAddr=minAddr,targetPayloadBytes=0;
+  for(let i=0;i<targetBlocks.length;i++){const b=targetBlocks[i],end=b.target+b.plen;targetPayloadBytes+=b.plen;if(i){const prev=targetBlocks[i-1].target+targetBlocks[i-1].plen;if(b.target<prev)overlaps++;else if(b.target>prev)gaps++}if(maxAddr===null||end>maxAddr)maxAddr=end}
+  if(overlaps)result.errors.push(`${overlaps} überlappende Flash-Bereiche in der Zielfamilie erkannt`);
+  if(gaps)result.warnings.push(`${gaps} Lücke(n) im Firmware-Adressbereich`);
+  if(minAddr!==null&&(minAddr<0x10000000||minAddr>=0x12000000))result.warnings.push('Flash-Start liegt außerhalb des üblichen RP-series-XIP-Bereichs');
+  const joined=new Uint8Array(targetPayloadBytes+Math.max(0,gaps));let pos=0,prevEnd=null;
+  for(const b of targetBlocks){if(prevEnd!==null&&b.target!==prevEnd)joined[pos++]=0;joined.set(b.data,pos);pos+=b.data.length;prevEnd=b.target+b.plen}
+  const strings=extractAsciiStrings(joined.subarray(0,pos));const info=detectOpenKnxInfo(strings);Object.assign(result,info);
+  const decodedTags=openKnxTags.map(decodeOpenKnxUf2Tag).filter(Boolean),tagKeys=[...new Set(decodedTags.map(t=>`${t.appIdHex}/${t.version}`))];
+  if(decodedTags.length){result.openknx=true;result.openKnxUf2=decodedTags[0];if(tagKeys.length>1)result.warnings.push('Mehrere unterschiedliche OpenKNX-Versions-Tags in der UF2 gefunden')}
+  result.fileBytes=file.size;result.blockCount=total;result.payloadBytes=payloadBytes;result.targetPayloadBytes=targetPayloadBytes;result.minAddr=minAddr;result.maxAddr=maxAddr;result.gaps=gaps;result.overlaps=overlaps;result.duplicates=duplicates;result.familyOk=familyOk;result.familyId=targetId;result.familyName=targetInfo?targetInfo.name:null;result.chipFamily=targetInfo?targetInfo.chip:null;result.arch=targetInfo?targetInfo.arch:null;result.auxFamilies=auxFamilies;result.magicOk=magicOk;result.payloadOk=payloadOk;result.counterOk=counterOk;
+  result.sha256=await sha256Hex(buffer);result.valid=result.errors.length===0;
+  const auxText=auxFamilies.length?` · Hilfs-Families: ${auxFamilies.map(x=>x.info.name).join(', ')}`:'';
+  result.checks=[
+    {ok:magicOk,text:'UF2-Struktur korrekt'},
+    {ok:familyOk&&!!targetInfo,text:targetInfo?`${targetInfo.name} · ${hex8(targetId)}${auxText}`:'Unterstützte ausführbare RP-series Family-ID'},
+    {ok:counterOk&&!duplicates,text:`Blockzähler pro Family-ID plausibel (${fmtInt(total)} physische Blöcke)`},
+    {ok:payloadOk,text:'256-Byte-Payload pro UF2-Block'},
+    {ok:!overlaps,text:'Keine überlappenden Flash-Bereiche'},
+    {ok:gaps===0,text:gaps===0?'Flashbereich zusammenhängend':`${gaps} Lücke(n) im Flashbereich`,warn:gaps>0}
+  ];
+  return result;
+}
+function addInfoRow(grid,label,value,cls=''){
+  if(value===null||value===undefined||value==='')return;const l=document.createElement('div');l.className='label';l.textContent=label;const v=document.createElement('div');v.className='value '+cls;v.textContent=value;grid.append(l,v);
+}
+function showFirmwareDialog(a){
+  const body=$('fwModalBody');body.replaceChildren();
+  const title=document.createElement('div');title.className='fw-title';title.textContent=a.firmwareName||a.file.name;body.appendChild(title);
+  if(a.deviceName||a.deviceShort){const sub=document.createElement('div');sub.className='fw-subtitle';sub.textContent=[a.deviceName,a.deviceShort&&a.deviceShort!==a.deviceName?`(${a.deviceShort})`:null].filter(Boolean).join(' ');body.appendChild(sub)}
+
+  const selected=a.openKnxUf2||null;
+  const summary=document.createElement('div');summary.className='fw-info-grid';
+  if(selected){addInfoRow(summary,'OpenKNX-Version',selected.version);addInfoRow(summary,'OpenKNX App-ID',selected.appIdHex,'mono')}
+  if(a.buildDate||a.buildTime)addInfoRow(summary,'Build',[a.buildDate,a.buildTime].filter(Boolean).join(' · '));
+  addInfoRow(summary,'Datei',a.file.name);addInfoRow(summary,'Firmware-Payload',a.targetPayloadBytes!=null?bytes(a.targetPayloadBytes):null);if(a.payloadBytes!=null&&a.targetPayloadBytes!=null&&a.payloadBytes!==a.targetPayloadBytes)addInfoRow(summary,'UF2-Payload gesamt',bytes(a.payloadBytes));body.appendChild(summary);
+
+  if(a.errors.length){const e=document.createElement('div');e.className='fw-invalid';e.textContent='Nicht flashbar: '+a.errors.join(' · ');body.appendChild(e)}
+  if(a.warnings.length){for(const w of a.warnings){const e=document.createElement('div');e.className='check-warn';e.textContent='⚠ '+w;body.appendChild(e)}}
+
+  const tech=document.createElement('details');tech.className='fw-tech';const ts=document.createElement('summary');ts.textContent='Technische Details';tech.appendChild(ts);
+  const grid=document.createElement('div');grid.className='fw-info-grid';tech.appendChild(grid);
+  addInfoRow(grid,'Dateigröße',`${bytes(a.fileBytes)} (${fmtInt(a.fileBytes)} B)`);addInfoRow(grid,'Ziel',a.familyName||'nicht eindeutig');if(a.auxFamilies&&a.auxFamilies.length)addInfoRow(grid,'Hilfs-Families',a.auxFamilies.map(x=>x.info.name+' '+hex8(x.id)).join(' · '));addInfoRow(grid,'UF2-Blöcke',a.blockCount!=null?fmtInt(a.blockCount):null);if(a.minAddr!=null&&a.maxAddr!=null)addInfoRow(grid,'Flashbereich',`${hex8(a.minAddr)} – ${hex8(a.maxAddr-1)}`,'mono');addInfoRow(grid,'SHA-256',a.sha256,'mono hash');
+  const checks=document.createElement('div');checks.className='checklist';for(const cc of a.checks||[]){const e=document.createElement('div');e.className=cc.ok?'check-ok':(cc.warn?'check-warn':'check-bad');e.textContent=(cc.ok?'✓ ':(cc.warn?'⚠ ':'✗ '))+cc.text;checks.appendChild(e)}tech.appendChild(checks);
+  if(a.modules&&a.modules.length){const d=document.createElement('details'),sum=document.createElement('summary');sum.textContent=`Erkannte Module (${a.modules.length})`;d.appendChild(sum);const t=document.createElement('table');t.className='module-table';for(const m of a.modules.slice(0,20)){const tr=document.createElement('tr'),n=document.createElement('td'),v=document.createElement('td');n.textContent=m.name;v.textContent=m.version;tr.append(n,v);t.appendChild(tr)}d.appendChild(t);tech.appendChild(d)}body.appendChild(tech);
+
+  const compatible=fwDeviceCompatible(a),connected=!!(lastBridgeStatus&&(lastBridgeStatus.usb||lastBridgeStatus.msc));if(a.valid&&!compatible){const e=document.createElement('div');e.className='fw-invalid';e.textContent=`Zielkonflikt: UF2 ist für ${a.chipFamily}, verbunden ist ${currentRpFamily()}.`;body.appendChild(e)}
+  const q=document.createElement('div');q.className='fw-question';q.textContent=!a.valid?'Diese Datei kann nicht geflasht werden.':(!compatible?'Diese UF2 passt nicht zur verbundenen Chipfamilie.':`Diese Firmware jetzt auf ${a.chipFamily||'das RP MCU'} flashen?`);body.appendChild(q);
+  $('fwModalFlash').disabled=!a.valid||!compatible||!connected||fwLocalBusy||esp32LocalBusy;$('fwModalFlash').textContent=!connected?'Kein RP MCU verbunden':(!compatible?'Falsche Chipfamilie':'Firmware flashen');$('fwModal').classList.remove('hidden');syncModalScrollLock();
+}
+function closeFirmwareDialog(){$('fwModal').classList.add('hidden');syncModalScrollLock()}
+async function prepareFirmwareDialog(){
+  const f=fwSelectedFile();if(!f)return;const seq=++fwAnalyzeSeq;fwAnalysis=null;fwLocalBusy=true;$('fwProgress').value=0;$('fwStatus').textContent='Firmware wird analysiert…';refreshFwButton();
+  try{const a=await analyzeUf2File(f);if(seq!==fwAnalyzeSeq||fwSelectedFile()!==f)return;fwAnalysis=a;const ver=a.openKnxUf2?` · OpenKNX ${a.openKnxUf2.version}`:'';$('fwStatus').textContent=a.valid?`${f.name}${ver} · gültige ${a.familyName||'RP-series'}-UF2 · ${bytes(a.payloadBytes)} Firmware-Payload`:`${f.name} · UF2-Prüfung fehlgeschlagen`;showFirmwareDialog(a)}
+  catch(e){if(seq!==fwAnalyzeSeq)return;$('fwStatus').textContent='Firmware konnte nicht analysiert werden: '+(e&&e.message?e.message:e);fwAnalysis=null}
+  finally{if(seq===fwAnalyzeSeq){fwLocalBusy=false;refreshFwButton();if(fwAnalysis&&!$('fwModal').classList.contains('hidden'))showFirmwareDialog(fwAnalysis)}}
+}
+$('fwFile').addEventListener('change',()=>{fwDroppedFile=null;fwAnalysis=null;$('fwProgress').value=0;updateFwDropUi();const f=fwSelectedFile();if(!f){$('fwStatus').textContent='UF2-Datei auswählen oder in das Feld ziehen.';refreshFwButton();return}prepareFirmwareDialog()});
+$('fwBrowseBtn').addEventListener('click',e=>{e.stopPropagation();chooseFirmwareFile()});
+$('fwDropZone').addEventListener('click',e=>{if(e.target!==$('fwBrowseBtn'))chooseFirmwareFile()});
+$('fwDropZone').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();chooseFirmwareFile()}});
+for(const ev of ['dragenter','dragover'])$('fwDropZone').addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();$('fwDropZone').classList.add('dragging');if(e.dataTransfer)e.dataTransfer.dropEffect='copy'});
+for(const ev of ['dragleave','dragend'])$('fwDropZone').addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();$('fwDropZone').classList.remove('dragging')});
+$('fwDropZone').addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();$('fwDropZone').classList.remove('dragging');const files=e.dataTransfer&&e.dataTransfer.files;if(files&&files.length)setDroppedFirmwareFile(files[0])});
+document.addEventListener('dragover',e=>{if(e.dataTransfer&&Array.from(e.dataTransfer.types||[]).includes('Files'))e.preventDefault()});
+document.addEventListener('drop',e=>{if(e.dataTransfer&&Array.from(e.dataTransfer.types||[]).includes('Files')&&!$('fwDropZone').contains(e.target))e.preventDefault()});
+updateFwDropUi();
+function uploadFirmware(){
+  const f=fwSelectedFile();if(!f)return;if(!fwAnalysis||fwAnalysis.file!==f){prepareFirmwareDialog();return}showFirmwareDialog(fwAnalysis);
+}
+function confirmFirmwareFlash(){
+  const f=fwSelectedFile();if(!f||!fwAnalysis||fwAnalysis.file!==f||!fwAnalysis.valid)return;closeFirmwareDialog();performFirmwareUpload(f);
+}
+function performFirmwareUpload(f){
+  fwLocalBusy=true;refreshFwButton();$('fwProgress').value=0;$('fwStatus').textContent='Firmware wird vorbereitet…';
+  const x=new XMLHttpRequest();x.open('POST','/api/firmware');x.setRequestHeader('Content-Type','application/octet-stream');if(fwAnalysis&&fwAnalysis.sha256)x.setRequestHeader('X-UF2-SHA256',fwAnalysis.sha256);
+  x.upload.onprogress=e=>{if(e.lengthComputable){$('fwProgress').value=Math.round(e.loaded*100/e.total);$('fwStatus').textContent=`Übertragung ${Math.round(e.loaded*100/e.total)} % · ${bytes(e.loaded)} / ${bytes(e.total)}`}};
+  x.onload=()=>{fwLocalBusy=false;$('fwProgress').value=x.status>=200&&x.status<300?100:$('fwProgress').value;$('fwStatus').textContent=x.responseText||(`HTTP ${x.status}`);refreshFwButton();schedulePoll(300)};
+  x.onerror=()=>{fwLocalBusy=false;$('fwStatus').textContent='Netzwerkfehler beim Firmware-Upload';refreshFwButton()};x.send(f);
+}
+async function retryStagedFirmware(){
+  const b=$('fwRetryBtn');b.disabled=true;$('fwStatus').textContent='Erneuter Schreibversuch wird gestartet…';
+  try{const r=await fetch('/api/firmware-retry',{method:'POST'});const t=await r.text();$('fwStatus').textContent=t.replace(/^OK:\s*/,'')||('HTTP '+r.status)}
+  catch(_){$('fwStatus').textContent='Netzwerkfehler beim erneuten Schreibversuch'}
+  schedulePoll(250)
+}
+
+
+let esp32Analysis=null,esp32AnalyzeSeq=0;
+function esp32SelectedFile(){const e=$('esp32File');return e&&e.files&&e.files.length?e.files[0]:null}
+function asciiField(u8,off,len){let out='';for(let i=0;i<len&&off+i<u8.length;i++){const c=u8[off+i];if(c===0)break;if(c>=32&&c<=126)out+=String.fromCharCode(c)}return out.trim()}
+async function analyzeEsp32Bin(file){
+  const buffer=await file.arrayBuffer(),u8=new Uint8Array(buffer),dv=new DataView(buffer),a={file,fileBytes:file.size,valid:false,errors:[]};
+  if(u8.length<288){a.errors.push('Datei ist zu klein für ein ESP-IDF-Anwendungsabbild');return a}
+  if(u8[0]!==0xE9)a.errors.push('ESP-Image-Magic 0xE9 fehlt');
+  const descOff=32,magic=dv.getUint32(descOff,true);if(magic!==0xABCD5432)a.errors.push('ESP-IDF App-Descriptor wurde nicht gefunden');
+  if(magic===0xABCD5432){a.version=asciiField(u8,descOff+16,32);a.project=asciiField(u8,descOff+48,32);a.time=asciiField(u8,descOff+80,16);a.date=asciiField(u8,descOff+96,16);a.idf=asciiField(u8,descOff+112,32)}
+  a.sha256=await sha256Hex(buffer);const max=Number(lastBridgeStatus&&lastBridgeStatus.bridge&&lastBridgeStatus.bridge.ota_size||0);if(max&&file.size>max)a.errors.push(`Firmware ist größer als der OTA-Slot (${bytes(max)})`);a.valid=a.errors.length===0;return a
+}
+function showEsp32Dialog(a){
+  const body=$('esp32ModalBody');body.replaceChildren();const title=document.createElement('div');title.className='fw-title';title.textContent=a.project||'ESP32-S3 Bridge Firmware';body.appendChild(title);
+  const sub=document.createElement('div');sub.className='fw-subtitle';sub.textContent='ESP32-S3 Web-OTA';body.appendChild(sub);
+  const grid=document.createElement('div');grid.className='fw-info-grid';const b=lastBridgeStatus&&lastBridgeStatus.bridge||{};addInfoRow(grid,'Installiert',b.version||'–');addInfoRow(grid,'Ausgewählt',a.version||'–');addInfoRow(grid,'Projekt',a.project||'–');if(a.date||a.time)addInfoRow(grid,'Build',[a.date,a.time].filter(Boolean).join(' · '));addInfoRow(grid,'Datei',a.file.name);addInfoRow(grid,'Dateigröße',`${bytes(a.fileBytes)} (${fmtInt(a.fileBytes)} B)`);addInfoRow(grid,'Aktiver Slot',b.partition||'–','mono');addInfoRow(grid,'Ziel-Slot',b.ota_target||'automatisch','mono');body.appendChild(grid);
+  if(a.errors.length){const e=document.createElement('div');e.className='fw-invalid';e.textContent='Nicht flashbar: '+a.errors.join(' · ');body.appendChild(e)}
+  const tech=document.createElement('details');tech.className='fw-tech';const sum=document.createElement('summary');sum.textContent='Technische Details';tech.appendChild(sum);const tg=document.createElement('div');tg.className='fw-info-grid';addInfoRow(tg,'ESP-IDF',a.idf||null);addInfoRow(tg,'SHA-256',a.sha256,'mono hash');if(b.ota_size)addInfoRow(tg,'OTA-Slotgröße',bytes(b.ota_size));tech.appendChild(tg);body.appendChild(tech);
+  const q=document.createElement('div');q.className='fw-question';q.textContent=a.valid?'ESP32 Bridge jetzt aktualisieren und neu starten?':'Diese Datei kann nicht geflasht werden.';body.appendChild(q);$('esp32ModalFlash').disabled=!a.valid||esp32LocalBusy||fwLocalBusy||!b.ota||!!(lastBridgeStatus&&lastBridgeStatus.firmware&&lastBridgeStatus.firmware.busy);$('esp32Modal').classList.remove('hidden');syncModalScrollLock()
+}
+function closeEsp32Dialog(){$('esp32Modal').classList.add('hidden');syncModalScrollLock()}
+async function prepareEsp32Dialog(){
+  const f=esp32SelectedFile();if(!f)return;const seq=++esp32AnalyzeSeq;esp32Analysis=null;esp32LocalBusy=true;$('esp32Progress').value=0;$('esp32Status').textContent='ESP32-Firmware wird analysiert…';refreshEsp32Button();
+  try{const a=await analyzeEsp32Bin(f);if(seq!==esp32AnalyzeSeq||esp32SelectedFile()!==f)return;esp32Analysis=a;$('esp32Status').textContent=a.valid?`${f.name} · ${a.version||'Version unbekannt'} · gültiges ESP-IDF-Abbild`:`${f.name} · Prüfung fehlgeschlagen`;showEsp32Dialog(a)}
+  catch(e){if(seq!==esp32AnalyzeSeq)return;$('esp32Status').textContent='ESP32-Firmware konnte nicht analysiert werden: '+(e&&e.message?e.message:e);esp32Analysis=null}
+  finally{if(seq===esp32AnalyzeSeq){esp32LocalBusy=false;refreshEsp32Button();if(esp32Analysis&&!$('esp32Modal').classList.contains('hidden'))showEsp32Dialog(esp32Analysis)}}
+}
+function refreshEsp32Button(){const f=esp32SelectedFile(),b=lastBridgeStatus&&lastBridgeStatus.bridge||{};$('esp32UploadBtn').disabled=!f||esp32LocalBusy||fwLocalBusy||!b.ota||!!(lastBridgeStatus&&lastBridgeStatus.firmware&&lastBridgeStatus.firmware.busy)}
+$('esp32File').addEventListener('change',()=>{esp32Analysis=null;$('esp32Progress').value=0;const f=esp32SelectedFile();if(!f){$('esp32Status').textContent='ESP32-IDF-Firmware (.bin) auswählen.';refreshEsp32Button();return}prepareEsp32Dialog()});
+function confirmEsp32Flash(){const f=esp32SelectedFile();if(!f||!esp32Analysis||esp32Analysis.file!==f||!esp32Analysis.valid)return;closeEsp32Dialog();performEsp32Upload(f)}
+function performEsp32Upload(f){
+  esp32LocalBusy=true;refreshEsp32Button();refreshFwButton();$('esp32Progress').value=0;$('esp32Status').textContent='ESP32-Firmware wird übertragen…';
+  const x=new XMLHttpRequest();x.open('POST','/api/esp32-firmware');x.setRequestHeader('Content-Type','application/octet-stream');if(esp32Analysis&&esp32Analysis.sha256)x.setRequestHeader('X-Firmware-SHA256',esp32Analysis.sha256);
+  x.upload.onprogress=e=>{if(e.lengthComputable){const pc=Math.round(e.loaded*100/e.total);$('esp32Progress').value=pc;$('esp32Status').textContent=`Übertragung ${pc} % · ${bytes(e.loaded)} / ${bytes(e.total)}`}};
+  x.onload=()=>{if(x.status>=200&&x.status<300){$('esp32Progress').value=100;$('esp32Status').textContent=x.responseText||'ESP32-Update erfolgreich. Neustart…';setTimeout(waitForEsp32Return,2500)}else{esp32LocalBusy=false;$('esp32Status').textContent=x.responseText||(`HTTP ${x.status}`);refreshEsp32Button();refreshFwButton()}};
+  x.onerror=()=>{esp32LocalBusy=false;$('esp32Status').textContent='Netzwerkfehler beim ESP32-Firmware-Upload';refreshEsp32Button();refreshFwButton()};x.send(f)
+}
+async function waitForEsp32Return(){
+  for(let i=0;i<40;i++){try{const r=await fetch('/api/status',{cache:'no-store'});if(r.ok){$('esp32Status').textContent='ESP32 wieder erreichbar · Seite wird neu geladen…';setTimeout(()=>location.reload(),700);return}}catch(_){}await new Promise(r=>setTimeout(r,1000))}
+  esp32LocalBusy=false;$('esp32Status').textContent='Update übertragen. ESP32 ist noch nicht wieder erreichbar.';refreshEsp32Button();refreshFwButton()
+}
+
+async function refreshUsbInfo(){
+  const b=$('usbRefreshBtn');
+  if(!b||b.disabled)return;
+  b.disabled=true;b.classList.remove('refresh-ok','refresh-bad');b.classList.add('refreshing');
+  const oldTitle=b.title,oldText=b.textContent;
+  try{
+    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),5000);
+    let r;
+    try{r=await fetch('/api/usb-refresh',{method:'POST',cache:'no-store',signal:ctl.signal})}
+    finally{clearTimeout(to)}
+    const t=await r.text();
+    if(!r.ok)throw new Error(t||('HTTP '+r.status));
+    b.classList.remove('refreshing');b.classList.add('refresh-ok');b.textContent='✓';b.title=t.replace(/^OK:\s*/,'')||'USB-Gerät und Firmware-Version aktualisiert';
+    schedulePoll(0);
+  }catch(e){
+    b.classList.remove('refreshing');b.classList.add('refresh-bad');b.textContent='!';
+    b.title=(e&&e.name==='AbortError')?'Zeitüberschreitung beim Aktualisieren':(e&&e.message?e.message:'USB-/Firmware-Aktualisierung fehlgeschlagen');
+  }finally{
+    setTimeout(()=>{b.classList.remove('refreshing','refresh-ok','refresh-bad');b.textContent=oldText;b.title=oldTitle;b.disabled=false;schedulePoll(0)},1400);
+  }
+}
+function usbBrowserDiag(prev,j){
+ const d=j&&j.usb_debug||{},pd=prev&&prev.usb_debug||{};
+ const stamp=()=>new Date().toLocaleTimeString();
+ if(lastUsbDiagSeq===null){
+  lastUsbDiagSeq=Number(d.event_seq||0);lastUsbOpenFailCount=Number(d.open_fail_count||0);
+  console.info(`[RPI Bridge][USB ${stamp()}] Browser-Diagnose aktiv`,{usb:!!j.usb,msc:!!j.msc,device:j.device||{},debug:d});
+  if(!j.usb)console.warn(`[RPI Bridge][USB ${stamp()}] CDC ist beim Öffnen der Seite getrennt`,d);
+ }else{
+  const seq=Number(d.event_seq||0);
+  if(seq!==lastUsbDiagSeq){
+   const fn=(!j.usb||String(d.last_event||'').toLowerCase().includes('fail')||String(d.last_event||'').toLowerCase().includes('disconnect'))?'warn':'info';
+   console[fn](`[RPI Bridge][USB ${stamp()}] ${d.last_event||'USB-Diagnoseereignis'}`,{usb:!!j.usb,msc:!!j.msc,debug:d,device:j.device||{}});
+   lastUsbDiagSeq=seq;
+  }
+  const fails=Number(d.open_fail_count||0);
+  lastUsbOpenFailCount=fails;
+ }
+ if(prev&&!!prev.usb!==!!j.usb){
+  console[j.usb?'info':'error'](`[RPI Bridge][USB ${stamp()}] USB CDC ${j.usb?'VERBUNDEN':'GETRENNT'}`,{before:!!prev.usb,after:!!j.usb,debug:d,device:j.device||{}});
+ }
+ if(prev&&pd.reconnect_paused!==d.reconnect_paused)console.warn(`[RPI Bridge][USB ${stamp()}] reconnect_paused = ${!!d.reconnect_paused}`,d);
+ if(prev&&pd.reconnect_hold!==d.reconnect_hold)console.warn(`[RPI Bridge][USB ${stamp()}] reconnect_hold = ${!!d.reconnect_hold}`,d);
+}
+window.bridgeUsbStatus=()=>lastBridgeStatus;
+function schedulePoll(ms=1500){clearTimeout(pollTimer);pollTimer=setTimeout(poll,ms)}
+async function poll(){
+ if(pollBusy)return;
+ pollBusy=true;
+ const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),2500);
+ try{
+  let r=await fetch('/api/status',{cache:'no-store',signal:ctl.signal});let j=await r.json();const prevStatus=lastBridgeStatus;usbBrowserDiag(prevStatus,j);lastBridgeStatus=j;setState('wifi',j.wifi);setState('usb',j.usb);if(j.msc)mark('msc','ok',((j.firmware&&j.firmware.bootsel_family)||'RP MCU')+' BOOTSEL');else mark('msc','idle','nicht aktiv');if(j.tcp){const tm=j.tcp_mode==='rfc2217'?'RFC2217':j.tcp_mode==='raw'?'Raw':'verbunden';mark('tcp','ok',tm)}else mark('tcp','idle','kein Client');
+  const localWs=!!(wsock&&wsock.readyState===WebSocket.OPEN),wsClients=Number(j.ws_clients||0),wsMax=Number(j.ws_max||2);
+  if(wsClients>0)mark('ws','ok',`${wsClients} verbunden`);else mark('ws','bad','getrennt');
+  if(localWs){const t=wsClients>1?`WebSocket · ${wsClients} verbunden`:'WebSocket verbunden';mark('wsPill','ok',t);$('wsPill').title=`Browser-Terminals: ${wsClients}/${wsMax}`}
+  else{$('wsPill').title=wsClients>0?`${wsClients}/${wsMax} andere Browser-Terminals verbunden`:`Browser-Terminals: 0/${wsMax}`}
+  $('ip').textContent=j.ip||'–';updateRssi(!!j.wifi,j.rssi);$('tcpPort').textContent=j.tcp_port;
+  let d=j.device||{},rk=j.openknx||{},sp=j.serial||{};$('vidpid').textContent=d.valid?hex4(d.vid)+':'+hex4(d.pid):'–';$('product').textContent=d.product||'–';$('rpFamily').textContent=d.family&&d.family!=='RP MCU'?d.family:(j.msc&&j.firmware&&j.firmware.bootsel_family?j.firmware.bootsel_family:'–');$('rpFirmwareVersion').textContent=rk.valid&&rk.version?rk.version:'–';$('serial').textContent=d.serial||'–';$('usbver').textContent=d.valid?(bcd(d.bcd_usb)+' / '+bcd(d.bcd_device)):'–';if(sp.valid){const pm=['N','O','E','M','S'][Number(sp.parity)]||'?';const sm=Number(sp.stop)===1?'1.5':Number(sp.stop)===2?'2':'1';$('cdcLine').textContent=`${Number(sp.baud)||0} · ${Number(sp.data_bits)||8}${pm}${sm}`;$('cdcCtl').textContent=`DTR ${sp.dtr?1:0} · RTS ${sp.rts?1:0}`}else{$('cdcLine').textContent='–';$('cdcCtl').textContent='–'};
+  let st=j.stats||{},mem=j.memory||{};$('usbRx').textContent=bytes(st.usb_rx);$('usbTx').textContent=bytes(st.usb_tx);$('tcpRx').textContent=bytes(st.tcp_rx);$('tcpTx').textContent=bytes(st.tcp_tx);$('wsRx').textContent=bytes(st.ws_rx);$('wsTx').textContent=bytes(st.ws_tx);$('drops').textContent=bytes((st.drop_tcp||0)+(st.drop_ws||0)+(st.drop_usb||0));$('heapFree').textContent=bytes(mem.heap_free);$('heapMin').textContent=bytes(mem.heap_min);$('uptime').textContent=dur(j.uptime_s);
+  const fw=j.firmware||{};const bridge=j.bridge||{};if(bridge.version){$('bridgeVersion').textContent='v'+String(bridge.version).replace(/^v/,'')}const bootBusy=!!fw.busy||esp32LocalBusy;const rpPresent=!!(j.usb||j.msc);const usbRefresh=$('usbRefreshBtn');if(usbRefresh&&!usbRefresh.classList.contains('refreshing'))usbRefresh.disabled=bootBusy||!rpPresent;const statsReset=$('statsResetBtn');if(statsReset&&!statsReset.classList.contains('refreshing'))statsReset.disabled=bootBusy;const espRestart=$('espRestartBtn');if(espRestart&&!espRestart.classList.contains('refreshing'))espRestart.disabled=bootBusy;$('bootBtn').disabled=bootBusy||!rpPresent||j.msc;$('startBtn').disabled=bootBusy||!j.msc;$('nukeBtn').disabled=bootBusy||!rpPresent;if(j.msc){mark('bootInfo','ok',`${fw.bootsel_family||'RP MCU'} BOOTSEL aktiv · Firmware-Start möglich`)}else if(bootBusy){mark('bootInfo','idle',fw.message||'Vorgang läuft…')}else if(j.usb){mark('bootInfo','idle',`${d.family||'RP MCU'} Firmware aktiv`)}else{mark('bootInfo','idle','Kein RP MCU verbunden')}if(!fwLocalBusy&&!esp32LocalBusy&&fw.message)$('fwStatus').textContent=fw.message;if(!fwLocalBusy&&!esp32LocalBusy&&fw.total>0&&fw.received>=0)$('fwProgress').value=Math.min(100,Math.round(100*fw.received/fw.total));const retry=$('fwRetryBtn');const canRetry=fw.state==='error'&&!!fw.staged_ready&&rpPresent;retry.hidden=!canRetry;retry.disabled=bootBusy||!canRetry;refreshFwButton();refreshEsp32Button();
+ }catch(e){if(e.name!=='AbortError'){setState('wifi',false);const now=Date.now();if(now-lastStatusFetchWarn>10000){console.warn('[RPI Bridge] /api/status nicht erreichbar',e);lastStatusFetchWarn=now}}}
+ finally{clearTimeout(to);pollBusy=false;schedulePoll((fwLocalBusy||esp32LocalBusy)?2500:1500)}
+}
+async function enterBootloader(){
+ if(!lastBridgeStatus||(!lastBridgeStatus.usb&&!lastBridgeStatus.msc))return;
+ if(lastBridgeStatus.msc){mark('bootInfo','ok',`${(lastBridgeStatus.firmware&&lastBridgeStatus.firmware.bootsel_family)||'RP MCU'} BOOTSEL aktiv`);return}
+ if(!confirm('RP MCU jetzt in den BOOTSEL-Bootloader wechseln?\n\nDie laufende Firmware wird dabei beendet.'))return;
+ $('bootBtn').disabled=true;mark('bootInfo','idle','Bootloader-Wechsel wird gestartet…');
+ try{let r=await fetch('/api/bootloader',{method:'POST'});let t=await r.text();if(r.status===202)mark('bootInfo','idle',t.replace(/^OK:\s*/,''));else if(r.ok)mark('bootInfo','ok',t.replace(/^OK:\s*/,''));else mark('bootInfo','bad',t||('HTTP '+r.status))}
+ catch(_){mark('bootInfo','bad','Netzwerkfehler beim Bootloader-Wechsel')}
+ schedulePoll(200)
+}
+async function startFirmware(){
+ if(!lastBridgeStatus||!lastBridgeStatus.msc)return;
+ if(!confirm('BOOTSEL verlassen und die Firmware aus dem RP-MCU-Flash starten?\n\nNach einem Flash Nuke ist keine startbare Firmware vorhanden.'))return;
+ $('startBtn').disabled=true;$('bootBtn').disabled=true;$('nukeBtn').disabled=true;mark('bootInfo','idle','Firmware-Start über PICOBOOT wird gestartet…');
+ try{let r=await fetch('/api/start-firmware',{method:'POST'});let t=await r.text();if(r.status===202)mark('bootInfo','idle',t.replace(/^OK:\s*/,''));else if(r.ok)mark('bootInfo','ok',t.replace(/^OK:\s*/,''));else mark('bootInfo','bad',t||('HTTP '+r.status))}
+ catch(_){mark('bootInfo','bad','Netzwerkfehler beim Firmware-Start')}
+ schedulePoll(200)
+}
+async function flashNuke(){
+ if(!lastBridgeStatus||(!lastBridgeStatus.usb&&!lastBridgeStatus.msc))return;
+ if(!confirm('ACHTUNG: Flash Nuke löscht den GESAMTEN RP-MCU-Flash.\n\nFirmware, Einstellungen und sonstige Flash-Daten gehen vollständig verloren.\n\nWirklich fortfahren?'))return;
+ const token=prompt('Sicherheitsbestätigung:\n\nZum endgültigen Löschen bitte NUKE eingeben:','');
+ if(token!=='NUKE'){if(token!==null)alert('Abgebrochen: Bestätigung war nicht exakt NUKE.');return}
+ $('nukeBtn').disabled=true;$('bootBtn').disabled=true;$('startBtn').disabled=true;$('fwUploadBtn').disabled=true;$('esp32UploadBtn').disabled=true;
+ mark('bootInfo','idle','Flash Nuke wird gestartet…');$('fwStatus').textContent='Flash Nuke: RP MCU wird vorbereitet…';$('fwProgress').value=0;
+ try{let r=await fetch('/api/flash-nuke',{method:'POST',headers:{'X-Confirm-Nuke':'NUKE'}});let t=await r.text();if(r.status===202){mark('bootInfo','idle','Flash Nuke läuft…');$('fwStatus').textContent=t.replace(/^OK:\s*/,'')}else{mark('bootInfo','bad',t||('HTTP '+r.status));$('fwStatus').textContent=t||('HTTP '+r.status)}}
+ catch(_){mark('bootInfo','bad','Netzwerkfehler beim Flash Nuke');$('fwStatus').textContent='Netzwerkfehler beim Flash Nuke'}
+ schedulePoll(200)
+}
+async function resetStats(){
+ const b=$('statsResetBtn');if(!b||b.disabled)return;
+ const old=b.textContent,oldTitle=b.title;b.disabled=true;b.classList.remove('refresh-ok','refresh-bad');b.classList.add('refreshing');
+ try{
+  const r=await fetch('/api/stats/reset',{method:'POST',cache:'no-store'});const t=await r.text();if(!r.ok)throw new Error(t||('HTTP '+r.status));
+  b.classList.remove('refreshing');b.classList.add('refresh-ok');b.textContent='✓';b.title='Datenzähler zurückgesetzt';schedulePoll(0);
+ }catch(e){
+  b.classList.remove('refreshing');b.classList.add('refresh-bad');b.textContent='!';b.title=e&&e.message?e.message:'Zurücksetzen fehlgeschlagen';
+ }finally{
+  setTimeout(()=>{b.classList.remove('refreshing','refresh-ok','refresh-bad');b.textContent=old;b.title=oldTitle;b.disabled=false},1200);
+ }
+}
+async function startWifiSetup(){
+ const b=$('wifiSetupBtn'),st=$('wifiSetupStatus');b.disabled=true;st.textContent='Konfigurations-AP wird gestartet…';
+ try{const r=await fetch('/api/wifi/setup',{method:'POST'});const text=await r.text();if(!r.ok)throw new Error(text);const d=JSON.parse(text);st.textContent=`AP ${d.ssid} aktiv · mit dem AP verbinden und http://${d.ip} öffnen`;alert(`WLAN-Konfiguration gestartet.\n\nMit dem WLAN ${d.ssid} verbinden.\nDanach http://${d.ip} öffnen.`)}catch(e){st.textContent='WLAN-Konfiguration konnte nicht gestartet werden: '+e.message}finally{b.disabled=false}
+}
+
+async function restartEsp32(){
+ const b=$('espRestartBtn');if(!b||b.disabled)return;
+ if(!confirm('ESP32-S3 Bridge jetzt neu starten?\n\nWLAN, WebSocket und TCP-Verbindungen sind während des Neustarts kurz unterbrochen.'))return;
+ const old=b.textContent,oldTitle=b.title;b.disabled=true;b.classList.remove('refresh-ok','refresh-bad');b.classList.add('refreshing');
+ try{
+  const r=await fetch('/api/restart',{method:'POST',cache:'no-store'});const t=await r.text();if(!r.ok)throw new Error(t||('HTTP '+r.status));
+  b.title=t.replace(/^OK:\s*/,'')||'ESP32 wird neu gestartet';
+  clearTimeout(pollTimer);$('termState').textContent='ESP32 startet neu…';mark('wsPill','idle','Neustart…');
+  setTimeout(waitForEsp32Restart,1700);
+ }catch(e){
+  b.classList.remove('refreshing');b.classList.add('refresh-bad');b.textContent='!';b.title=e&&e.message?e.message:'Neustart fehlgeschlagen';
+  setTimeout(()=>{b.classList.remove('refresh-bad');b.textContent=old;b.title=oldTitle;b.disabled=false},1400);
+ }
+}
+async function waitForEsp32Restart(){
+ for(let i=0;i<40;i++){
+  try{const r=await fetch('/api/status',{cache:'no-store'});if(r.ok){location.reload();return}}catch(_){}
+  await new Promise(r=>setTimeout(r,1000));
+ }
+ const b=$('espRestartBtn');if(b){b.classList.remove('refreshing');b.classList.add('refresh-bad');b.textContent='!';b.title='ESP32 nach Neustart nicht wieder erreichbar'}
+}
+document.addEventListener('keydown',e=>{
+ if(e.key!=='Escape')return;
+ if(!$('fwModal').classList.contains('hidden')){e.preventDefault();closeFirmwareDialog();return}
+ if(!$('esp32Modal').classList.contains('hidden')){e.preventDefault();closeEsp32Dialog()}
+});
+window.addEventListener('beforeunload',()=>{clearTimeout(retry);clearTimeout(pollTimer);if(wsock){try{wsock.close(1000,'page unload')}catch(_){}}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(!wsock||wsock.readyState===WebSocket.CLOSED){retryDelay=1500;connectWs()}schedulePoll(0)}});
+connectWs();schedulePoll(0);if(consoleWindowMode)requestAnimationFrame(()=>$('cmd').focus());
+</script>
+</body></html>

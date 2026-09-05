@@ -1,0 +1,99 @@
+menu "USB WiFi Bridge"
+
+config BRIDGE_WEB_TERMINAL
+    bool
+    default y
+    select HTTPD_WS_SUPPORT
+
+config BRIDGE_TCP_PORT
+    int "TCP bridge port"
+    range 1 65535
+    default 3333
+
+config BRIDGE_CDC_VID
+    hex "RP-series CDC USB vendor ID"
+    default 0x2e8a
+    help
+        USB VID of the normal RP-series CDC firmware. Raspberry Pi/Pico SDK
+        devices normally use 0x2e8a. RP2040 and RP2350/RP2354 ROM BOOTSEL
+        devices are deliberately excluded from the CDC class driver.
+
+config BRIDGE_CDC_PID
+    hex "RP-series CDC USB product ID"
+    default 0x000a
+    help
+        Preferred USB PID of the normal RP-series CDC firmware. Existing
+        OpenKNX/RP2040 setups commonly use 0x000a. When the fallback option
+        below is enabled, the bridge also tries the standard Raspberry Pi SDK
+        CDC PIDs 0x0009 and 0x000a. BOOTSEL PIDs 0x0003/0x000f are never
+        opened by the CDC class driver.
+
+config BRIDGE_CDC_TRY_RP_SDK_PIDS
+    bool "Also try standard Raspberry Pi SDK CDC PIDs"
+    default y
+    help
+        If the configured VID is Raspberry Pi 0x2e8a, also try CDC PIDs
+        0x0009 and 0x000a. This keeps existing RP2040/OpenKNX settings while
+        allowing common RP2350/Pico 2 USB-stdio firmware to connect without
+        changing the project configuration.
+
+config BRIDGE_CDC_BAUD
+    int "Normal CDC line coding baud rate"
+    range 2400 3000000
+    default 115200
+    help
+        For native RP-series USB CDC this is normally only metadata. Do not use
+        1200 here: the bridge reserves 1200 as the Pico SDK BOOTSEL touch baud
+        during firmware updates.
+
+config BRIDGE_USB_BUFFER_SIZE
+    int "USB/TCP stream buffer size"
+    range 1024 32768
+    default 8192
+
+config BRIDGE_WS_BUFFER_SIZE
+    int "USB/WebSocket burst buffer size"
+    range 8192 65536
+    default 32768
+    help
+        Shared fan-out history buffer for high-rate console output. Each of
+        the two supported browser terminals has an independent read cursor in
+        this same buffer, so multi-client support does not duplicate the full
+        buffer in RAM. Keeping it separate also avoids increasing the TCP and
+        network-to-USB rings for large TCL dumps.
+
+config BRIDGE_USB_TRANSFER_SIZE
+    int "USB transfer buffer size"
+    range 64 4096
+    default 512
+
+config BRIDGE_FW_MAX_SIZE
+    int "Maximum RP-series UF2 upload size (bytes)"
+    range 65536 8388608
+    default 8388608
+    help
+        Maximum accepted UF2 file size. The bridge stores the complete upload in
+        the dedicated 8 MiB fwstage partition before touching RP-series BOOTSEL.
+        SHA-256 is verified after staging and the RP MCU is flashed only from
+        this local copy.
+
+config BRIDGE_FW_1200_TOUCH_TIMEOUT_MS
+    int "1200-baud BOOTSEL detection timeout (ms)"
+    range 1000 15000
+    default 3500
+    help
+        How long the bridge waits for RP BOOTSEL after the OpenKNX-compatible
+        serial touch sequence: byte 0x07 at normal baud, 1 s delay, DTR/RTS
+        low and CDC line coding 1200. If CDC remains connected after this
+        timeout, the OpenKNX 'bootloader' command is used as a fallback.
+
+config BRIDGE_FW_BOOT_TIMEOUT_MS
+    int "Fallback / extended bootloader enumeration timeout (ms)"
+    range 2000 30000
+    default 12000
+    help
+        How long the bridge waits for the RP-series BOOTSEL mass-storage device
+        after the OpenKNX 'bootloader' fallback, or after CDC already
+        disappeared following the 1200-baud touch.
+
+endmenu

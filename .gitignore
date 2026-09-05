@@ -1,0 +1,13 @@
+/build/
+/managed_components/
+
+/sdkconfig
+/sdkconfig.old
+/sdkconfig.*.old
+
+/main/assets/nuke_universal.uf2
+
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
