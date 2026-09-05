@@ -12,10 +12,31 @@ It provides a browser terminal, an optional separate console window, Raw TCP/RFC
 - Raw TCP and RFC2217 on port `3333`
 - RP2040 and RP2350/RP2354 BOOTSEL detection
 - UF2 firmware upload from the browser
+- UF2 firmware analysis before flashing
 - ESP32-S3 firmware update via Web-OTA
 - Automatic USB reconnect with diagnostic status
 - Up to two browser terminals at the same time
-- WiFi setup through an ESP32 access point, stored in NVS
+- WiFi setup through an ESP32 access point with captive portal, stored in NVS
+
+## Screenshots
+
+### Web interface
+
+The main page shows WiFi and USB status, the detected RP device, bridge statistics, BOOTSEL controls, firmware update functions and the integrated serial console.
+
+![RPI USB WiFi Bridge web interface](screenshots/overview.png)
+
+### RP firmware analysis
+
+Before flashing, the uploaded UF2 file is analyzed. The bridge displays target information, UF2 structure details, flash range and detected OpenKNX modules where available.
+
+![RP firmware analysis](screenshots/firmware-analysis.png)
+
+### Browser console
+
+The serial console can be used directly in the main interface or opened in a separate browser window.
+
+![Browser console](screenshots/console.png)
 
 ## ESP-IDF installation
 
@@ -59,6 +80,13 @@ idf.py flash
 ```
 
 Run `idf.py set-target esp32s3` only for a fresh/unconfigured checkout. It regenerates `sdkconfig`.
+
+To completely erase the ESP32-S3 flash, including stored NVS data and WiFi credentials:
+
+```powershell
+idf.py erase-flash
+idf.py flash
+```
 
 ## WiFi setup
 
