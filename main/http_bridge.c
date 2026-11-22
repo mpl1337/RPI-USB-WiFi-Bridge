@@ -16,6 +16,7 @@
 #include "esp_app_desc.h"
 #include "esp_ota_ops.h"
 #include "usb_cdc_bridge.h"
+#include "knx_monitor_http.h"
 #include "tcp_bridge.h"
 #include "wifi_bridge.h"
 #include "bridge_buffers.h"
@@ -873,7 +874,7 @@ void http_bridge_start(void)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = 80;
     config.stack_size = 12288;
-    config.max_uri_handlers = 16;
+    config.max_uri_handlers = 20;
 
 
     config.max_open_sockets = 5;
@@ -957,6 +958,7 @@ void http_bridge_start(void)
     ESP_ERROR_CHECK(httpd_register_uri_handler(s_server, &firmware_retry_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(s_server, &esp32_firmware_uri));
     ESP_ERROR_CHECK(httpd_register_uri_handler(s_server, &ws_uri));
+    knx_monitor_http_register(s_server);
     ESP_ERROR_CHECK(httpd_register_err_handler(s_server, HTTPD_404_NOT_FOUND, http_not_found_handler));
 
     BaseType_t ok = xTaskCreate(ws_tx_task, "ws_tx", 4096, NULL, 5, NULL);
