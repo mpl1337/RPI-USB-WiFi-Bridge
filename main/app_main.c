@@ -9,6 +9,7 @@
 #include "wifi_bridge.h"
 #include "tcp_bridge.h"
 #include "usb_cdc_bridge.h"
+#include "knx_usb_monitor.h"
 #include "http_bridge.h"
 #include "firmware_update.h"
 
@@ -32,6 +33,7 @@ void app_main(void)
     bridge_stats_init();
     wifi_bridge_start();
     usb_cdc_bridge_start();
+    knx_usb_monitor_start();
     firmware_update_start();
     tcp_bridge_start();
     http_bridge_start();
