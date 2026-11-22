@@ -37,6 +37,8 @@ idf_component_register(
         "captive_portal.c"
         "tcp_bridge.c"
         "usb_cdc_bridge.c"
+        "knx_usb_monitor.c"
+        "knx_monitor_http.c"
         "http_bridge.c"
         "firmware_update.c"
     INCLUDE_DIRS "."
@@ -56,4 +58,6 @@ idf_component_register(
         usb
     EMBED_FILES
         "assets/nuke_universal.uf2"
+    EMBED_TXTFILES
+        "web/knx.html"
 )
