@@ -342,7 +342,12 @@ void knx_usb_monitor_start(void)
         .callback = knx_hid_driver_event,
         .callback_arg = NULL,
     };
-    ESP_ERROR_CHECK(hid_host_install(&cfg));
+    esp_err_t err = hid_host_install(&cfg);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "KNX USB HID driver unavailable (%s); flasher remains operational",
+                 esp_err_to_name(err));
+        return;
+    }
     ESP_LOGI(TAG, "KNX USB HID monitor ready (passive KNX capture)");
 }
 
