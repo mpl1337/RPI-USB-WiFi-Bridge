@@ -34,6 +34,36 @@ Als Hardware wird ein **ESP32-S3 mit USB Host und 16 MB Flash** verwendet.
 
 ![Browser-Konsole](screenshots/console.png)
 
+### KNX-USB-Monitor (Entwicklungsstand)
+
+An den USB-Host-Anschluss des ESP32-S3 kann alternativ ein KNX-USB-Interface
+mit KNX HID (Usage Page 0xFFA0) und cEMI angeschlossen werden. Im Webbrowser
+ist der Monitor unter `http://<bridge-ip>/knx` oder über den Link auf der
+Startseite erreichbar. Die bisherigen RP-MCU-/BOOTSEL-/UF2-Funktionen bleiben
+getrennt.
+
+- **Gruppenmonitor:** empfangene `L_Data.ind`-Gruppentelegramme mit Quelle,
+  Ziel, APCI-Dienst und Rohdaten. Ohne zugehörige ETS-Informationen sind die
+  DPTs unbekannt; Rohwerte werden nicht als erfundene DPT-Werte ausgegeben.
+- **Telegramm-/Busmonitor:** rohe empfangene cEMI-Meldungen. Echte
+  `L_Busmon.ind` werden ausdrücklich als solche erfasst; normale
+  `L_Data.ind`-Telegramme gelten **nicht** als vollständiger Busmonitor.
+- Filter, Pause, CSV-Export, Verlust- und Fehlerzähler. HTTP-API:
+  `/api/knx/status` und `/api/knx/events?after=0&limit=64`.
+- Empfangszeiten sind monotone ESP32-Zeiten seit Boot, keine physikalischen
+  Buszeitstempel. Telegramm-Historie: 128 im ESP32 und maximal 4000 im
+  geöffneten Browser. Überläufe werden gemeldet.
+- Empfangsmodus ist **KNX-seitig passiv**; die USB-Gerätekonfiguration setzt
+  beim Verbinden den aktiven EMI-Modus auf cEMI. Kein Senden von KNX-Gruppenwerten.
+
+**Wichtig:** Der echte Busmonitor-Modus ist von der jeweiligen KNX-USB-Hardware
+abhängig und wird in dieser ersten Version noch nicht aktiv umgeschaltet.
+ACK/NACK/BUSY, physikalische Übertragungsfehler oder Buslast lassen sich
+aus normalen `L_Data.ind`-Meldungen nicht verlässlich rekonstruieren.
+Das HID/cEMI-Verhalten muss mit der konkreten KNX-USB-Schnittstelle am
+ESP32-S3 getestet werden. Der bisherige einzelne USB-Host-Anschluss kann
+ohne zusätzlichen USB-Hub nur ein USB-Gerät unmittelbar aufnehmen.
+
 ### WLAN einrichten
 
 Beim ersten Start öffnet die Bridge einen Access Point:
