@@ -130,7 +130,6 @@ function render(){
 }
 function addEvents(incoming){
   for(const e of incoming){
-    if(entries.length && e.seq>entries[entries.length-1].seq+1)missed+=e.seq-entries[entries.length-1].seq-1;
     entries.push(e);
   }
   if(entries.length>4000)entries.splice(0,entries.length-4000);
