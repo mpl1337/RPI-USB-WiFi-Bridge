@@ -56,6 +56,7 @@ idf_component_register(
         esp_app_format
         fatfs
         usb
+        usb_host_hid
     EMBED_FILES
         "assets/nuke_universal.uf2"
     EMBED_TXTFILES
