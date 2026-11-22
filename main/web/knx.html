@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KNX-Monitor · RPI USB WiFi Bridge</title>
+<style>
+:root{color-scheme:light;--bg:#f3f7f4;--fg:#183126;--muted:#657b6f;--line:#d8e2dc;--green:#087a40}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1500px;margin:auto;padding:22px}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+h1{font-size:22px;margin:0}a{color:var(--green)}h2{font-size:16px;margin:0 0 8px}
+header .back{margin-left:auto}
+.card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:16px;margin:12px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px}
+.stat .name{color:var(--muted);font-size:12px}.stat .number{font:650 18px ui-monospace,Consolas,monospace}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+button,input,select{font:inherit;border:1px solid #b5c6bb;border-radius:7px;padding:7px 11px;background:#fff;color:inherit}
+button{cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--green)}
+button.selected{color:#fff;background:var(--green);border-color:var(--green)}
+button:disabled{opacity:.5;cursor:default}
+input[type=search]{min-width:235px;flex:1}
+.note{color:var(--muted);font-size:12px;margin:8px 0}
+.status{font-weight:650}.ok{color:#087a40}.error{color:#af3027}
+.table-wrap{overflow:auto;max-height:68vh;border:1px solid var(--line);border-radius:8px}
+table{width:100%;border-collapse:collapse;font:12px/1.42 ui-monospace,Consolas,monospace}
+th,td{text-align:left;padding:7px 9px;border-bottom:1px solid #edf1ee;vertical-align:top;white-space:nowrap}
+th{position:sticky;top:0;background:#eaf3ed;z-index:2;color:#405e4a}
+tr:hover{background:#f4faf6}
+td.raw{white-space:normal;overflow-wrap:anywhere;min-width:240px;max-width:600px}
+.muted{color:var(--muted)}
+.pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:2px 7px;background:#f6faf7}
+@media(max-width:650px){main{padding:12px}h1{font-size:19px}.card{padding:11px}th,td{padding:6px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div><h1>KNX-Monitor</h1><div class="muted">USB HID / cEMI · passiver Empfang</div></div>
+  <span id="usbState" class="status muted">USB wird geprüft…</span>
+  <a class="back" href="/">Zurück zum Flasher</a>
+</header>
+<section class="card stats" aria-label="KNX-Status">
+  <div class="stat"><div class="name">KNX-USB-Gerät</div><div id="device" class="number">–</div></div>
+  <div class="stat"><div class="name">cEMI</div><div id="emi" class="number">–</div></div>
+  <div class="stat"><div class="name">Telegramme</div><div id="captured" class="number">0</div></div>
+  <div class="stat"><div class="name">Gruppentelegramme</div><div id="groups" class="number">0</div></div>
+  <div class="stat"><div class="name">Echte Busmon-Frames</div><div id="busmon" class="number">0</div></div>
+  <div class="stat"><div class="name">Ungültig / Verloren</div><div id="loss" class="number">0 / 0</div></div>
+</section>
+<section class="card">
+  <div class="toolbar">
+    <button id="tabGroup" class="selected" type="button">Gruppenmonitor</button>
+    <button id="tabRaw" type="button">Telegramm- / Busmonitor</button>
+    <input id="filter" type="search" placeholder="Filter: Quelladresse, Gruppenadresse, Dienst, HEX …" aria-label="Telegramme filtern">
+    <button id="pause" type="button">Pausieren</button>
+    <button id="clear" type="button">Anzeige leeren</button>
+    <button id="export" type="button">CSV exportieren</button>
+  </div>
+  <div id="modeNote" class="note">Gruppenmonitor: Nur cEMI L_Data.ind mit Gruppenadresse. Ohne ETS-DPT-Zuordnung werden Nutzdaten unverändert bzw. neutral angezeigt.</div>
+  <div class="table-wrap"><table>
+    <thead><tr id="columns"></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <div id="countNote" class="note">Warte auf KNX-Telegramme …</div>
+</section>
+<div class="note">Zeitangaben sind ESP32-Empfangszeiten relativ zum Start (T+), keine gemessenen Bus-Sendezeitstempel. Ein echter Busmonitor erfordert vom USB-Gerät gelieferte L_Busmon.ind-Frames; L_Data.ind ersetzt keine ACK/NACK- oder Fehleranalyse. Es werden keine KNX-Bustelegramme gesendet.</div>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let lastSeq=0, entries=[], mode='group', paused=false, fetching=false, missed=0, connected=false;
+const nf=new Intl.NumberFormat('de-DE');
+const hex2=n=>(n>>>0).toString(16).toUpperCase().padStart(2,'0');
+const hex4=n=>(n>>>0).toString(16).toUpperCase().padStart(4,'0');
+const address=a=>[(a>>12)&15,(a>>8)&15,a&255].join('.');
+const group=a=>[(a>>11)&31,(a>>8)&7,a&255].join('/');
+const msgType=e=>e.code===0x29?'L_Data.ind':e.code===0x2b?'L_Busmon.ind':e.code===0x2e?'L_Data.con':e.code===0x11?'L_Data.req':'cEMI 0x'+hex2(e.code);
+const bytes=s=>{const r=[];for(let i=0;i+1<s.length;i+=2)r.push(parseInt(s.slice(i,i+2),16));return r};
+function decode(e){
+  if(!e.addresses_valid)return {svc:'–',value:'–',extra:'Keine L_Data-Adressen'};
+  const b=bytes(e.cemi),offset=2+(b[1]||0);
+  if(offset+8>=b.length)return {svc:'–',value:'–',extra:'Telegramm unvollständig'};
+  const npdu=b[offset+6],a=b[offset+7],z=b[offset+8];
+  if(npdu<1||offset+9+Math.max(0,npdu-1)>b.length)return {svc:'–',value:'–',extra:'NPDU-Länge ungültig'};
+  const apci=((a&3)<<8)|(z&0xc0);
+  const svc=apci===0?'GroupValueRead':apci===0x40?'GroupValueResponse':apci===0x80?'GroupValueWrite':'APCI 0x'+hex4(apci);
+  let value='–';
+  if(npdu===1 && apci!==0)value='Inline '+(z&63)+' (Bit0: '+(z&1)+')';
+  if(npdu>1){
+    const data=b.slice(offset+9,offset+9+npdu-1);
+    value=data.length===1?data[0]+' (0x'+hex2(data[0])+')':data.map(hex2).join(' ');
+  }
+  return {svc,value,extra:'TPCI 0x'+hex2(a&0xfc)};
+}
+function matches(e){
+  if(mode==='group' && !(e.code===0x29&&e.group))return false;
+  const q=$('filter').value.trim().toLowerCase();
+  if(!q)return true;
+  const d=decode(e);
+  return [e.seq,msgType(e),e.addresses_valid?address(e.source):'',e.addresses_valid?(e.group?group(e.destination):address(e.destination)):'',d.svc,d.value,e.cemi].join(' ').toLowerCase().includes(q);
+}
+function cell(tr,value,klass=''){
+  const td=document.createElement('td');
+  td.textContent=String(value);
+  if(klass)td.className=klass;
+  tr.appendChild(td);
+}
+function render(){
+  const cols=mode==='group'
+    ?['Nr.','Empfang','Quelle','Gruppe','Dienst','Wert (DPT unbekannt)','cEMI HEX']
+    :['Nr.','Empfang','Typ','Quelle','Ziel','Dienst','Daten','Rohdaten cEMI HEX'];
+  $('columns').replaceChildren(...cols.map(c=>{const th=document.createElement('th');th.textContent=c;return th}));
+  const selected=entries.filter(matches),shown=selected.slice(-450),frag=document.createDocumentFragment();
+  for(const e of shown){
+    const tr=document.createElement('tr'),d=decode(e),time='T+'+(e.received_us/1e6).toFixed(3)+' s';
+    cell(tr,e.seq);cell(tr,time);
+    if(mode==='raw')cell(tr,msgType(e));
+    cell(tr,e.addresses_valid?address(e.source):'–');
+    cell(tr,e.addresses_valid?(e.group?group(e.destination):address(e.destination)):'–');
+    cell(tr,d.svc);cell(tr,d.value);cell(tr,e.cemi.match(/.{1,2}/g)?.join(' ')||'–','raw');
+    frag.appendChild(tr);
+  }
+  $('rows').replaceChildren(frag);
+  $('countNote').textContent=selected.length+' passende Telegramme im Browser (max. 4000 gespeichert, '+shown.length+' dargestellt)'+(paused?' · Anzeige pausiert':'');
+  $('modeNote').textContent=mode==='group'
+    ?'Gruppenmonitor: cEMI L_Data.ind mit Gruppenadresse. Ohne ETS-Zuordnung keine automatische DPT-Interpretation.'
+    :'Telegramm-/Busmonitor: alle empfangenen cEMI-Meldungen, einschließlich L_Busmon.ind, falls das Interface sie tatsächlich liefert. Reine L_Data-Telegramme sind kein vollständiger Busmonitor.';
+}
+function addEvents(incoming){
+  for(const e of incoming){
+    if(entries.length && e.seq>entries[entries.length-1].seq+1)missed+=e.seq-entries[entries.length-1].seq-1;
+    entries.push(e);
+  }
+  if(entries.length>4000)entries.splice(0,entries.length-4000);
+}
+async function fetchEvents(){
+  if(fetching||paused)return;
+  fetching=true;
+  try{
+    const r=await fetch('/api/knx/events?after='+lastSeq+'&limit=64',{cache:'no-store'});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    const d=await r.json();
+    missed+=Number(d.missed||0);
+    if(Array.isArray(d.events)&&d.events.length){
+      addEvents(d.events);
+      lastSeq=Number(d.next_after||lastSeq);
+      render();
+    }else if(d.next_after>lastSeq){lastSeq=Number(d.next_after)}
+  }catch(e){console.warn('KNX events',e)}
+  finally{fetching=false}
+}
+async function fetchStatus(){
+  try{
+    const r=await fetch('/api/knx/status',{cache:'no-store'});
+    if(!r.ok)throw Error('HTTP '+r.status);
+    const s=await r.json();
+    connected=!!s.connected;
+    $('usbState').textContent=connected?(s.bus_status_known?(s.bus_connected?'KNX-USB verbunden · Bus erreichbar':'KNX-USB verbunden · Bus nicht erreichbar'):'KNX-USB verbunden · Busstatus unbekannt'):'Kein KNX-USB-HID-Gerät';
+    $('usbState').className='status '+(connected?'ok':'error');
+    $('device').textContent=connected?hex4(s.vid)+':'+hex4(s.pid):'–';
+    $('emi').textContent=s.active_emi===3?'cEMI':s.active_emi?'EMI '+s.active_emi:'unbekannt';
+    $('captured').textContent=nf.format(s.captured||0);
+    $('groups').textContent=nf.format(s.group_telegrams||0);
+    $('busmon').textContent=nf.format(s.busmonitor_telegrams||0);
+    $('loss').textContent=nf.format(s.malformed_reports||0)+' / '+nf.format(missed);
+    if(s.busmonitor_telegrams>0)$('tabRaw').title='Echte L_Busmon.ind empfangen';
+    else $('tabRaw').title='Keine echten L_Busmon.ind empfangen; Rohansicht zeigt cEMI';
+  }catch(e){$('usbState').textContent='HTTP-Verbindung unterbrochen';$('usbState').className='status error'}
+}
+function switchMode(m){mode=m;$('tabGroup').classList.toggle('selected',m==='group');$('tabRaw').classList.toggle('selected',m==='raw');render()}
+function exportCsv(){
+  const selected=entries.filter(matches);
+  const header=['Nr','Empfang seit Boot (s)','Typ','Quelle','Ziel','Dienst','Wert','cEMI HEX'];
+  const csv=[header.join(';')];
+  for(const e of selected){
+    const d=decode(e);
+    const fields=[e.seq,(e.received_us/1e6).toFixed(6),msgType(e),e.addresses_valid?address(e.source):'',e.addresses_valid?(e.group?group(e.destination):address(e.destination)):'',d.svc,d.value,e.cemi];
+    csv.push(fields.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';'));
+  }
+  const a=document.createElement('a'),url=URL.createObjectURL(new Blob(['\ufeff'+csv.join('\r\n')],{type:'text/csv;charset=utf-8'}));
+  a.href=url;a.download='knx-monitor-'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv';
+  a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
+$('tabGroup').onclick=()=>switchMode('group');$('tabRaw').onclick=()=>switchMode('raw');
+$('filter').oninput=render;
+$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Fortsetzen':'Pausieren';render()};
+$('clear').onclick=()=>{entries=[];missed=0;render()};
+$('export').onclick=exportCsv;
+render();fetchStatus();fetchEvents();
+setInterval(fetchEvents,350);setInterval(fetchStatus,1300);
+</script>
+</body>
+</html>
